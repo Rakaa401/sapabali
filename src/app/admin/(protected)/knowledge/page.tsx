@@ -3,7 +3,6 @@ import KnowledgeTable from "@/components/knowledge/KnowledgeTable";
 import { DUMMY_KNOWLEDGE } from "@/lib/dummy/knowledge";
 
 export default function KnowledgeListPage() {
-  // TODO (02.4): ganti DUMMY_KNOWLEDGE dengan query ke Supabase
   return (
     <main className="mx-auto max-w-6xl p-6">
       <div className="mb-6 flex items-center justify-between gap-4">

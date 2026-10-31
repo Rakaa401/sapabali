@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import DeleteKnowledgeButton from "@/components/knowledge/DeleteKnowledgeButton";
 import { IndexingBadge, StatusBadge } from "@/components/knowledge/StatusBadge";
-import { formatDate, getDestinationName, getKnowledgeById } from "@/lib/dummy/knowledge";
+import { formatDate } from "@/lib/knowledge/format";
+import { getKnowledgeById } from "@/lib/knowledge/queries";
 
 export default async function KnowledgeDetailPage({
   params,
@@ -9,8 +11,7 @@ export default async function KnowledgeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  // TODO (02.7): ganti dengan fetch by ID dari Supabase
-  const item = getKnowledgeById(id);
+  const item = await getKnowledgeById(id);
   if (!item) notFound();
 
   return (
@@ -21,11 +22,16 @@ export default async function KnowledgeDetailPage({
         <h1 className="text-2xl font-semibold text-slate-900">{item.title}</h1>
         <div className="flex gap-2">
           <Link href={`/admin/knowledge/${item.id}/edit`} className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800">Edit</Link>
-          {/* Dihubungkan di 02.10 dan 02.12 */}
+          {/* Dihubungkan di 02.12 */}
           <button type="button" disabled className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-400">
             {item.status === "published" ? "Unpublish" : "Publish"}
           </button>
-          <button type="button" disabled className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-400">Delete</button>
+          <DeleteKnowledgeButton
+            id={item.id}
+            title={item.title}
+            redirectTo="/admin/knowledge"
+            className="rounded-md border border-red-300 px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+          />
         </div>
       </div>
 
@@ -41,7 +47,7 @@ export default async function KnowledgeDetailPage({
       <dl className="mt-6 grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
         <Meta label="Category" value={item.category} />
         <Meta label="Language" value={item.language === "id" ? "Indonesian" : "English"} />
-        <Meta label="Destination" value={getDestinationName(item.destination_id)} />
+        <Meta label="Destination" value={item.destination?.name ?? null} />
         <Meta label="Indexing status" value={item.indexing_status} />
         <Meta label="Source name" value={item.source_name} />
         <Meta label="Source URL" value={item.source_url} />

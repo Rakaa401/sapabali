@@ -16,7 +16,7 @@ export async function updateKnowledge(
   }
 
   const admin = await getAdminClient();
-  if ("error" in admin) return { ok: false, error: admin.error };
+ if ("error" in admin) return { ok: false, error: admin.error ?? "Unauthorized" };
 
   const { data: existing } = await admin.supabase
     .from("knowledge_items")

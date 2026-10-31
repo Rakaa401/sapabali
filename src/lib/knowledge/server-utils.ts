@@ -2,22 +2,27 @@ import { createClient } from "@/lib/supabase/server";
 import type { KnowledgeFormValues } from "@/types/knowledge";
 import type { FieldErrors } from "./validation";
 
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+export type AdminClientResult =
+  | { error: string }
+  | { supabase: SupabaseServerClient };
+
 export type ActionResult =
   | { ok: true; id: string }
   | { ok: false; error: string; fieldErrors?: FieldErrors };
 
-// Pastikan user login dan terdaftar sebagai admin (fungsi is_admin() dari migration 0002)
-export async function getAdminClient() {
+export async function getAdminClient(): Promise<AdminClientResult> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: "You must be signed in." } as const;
+  if (!user) return { error: "You must be signed in." };
 
   const { data: isAdmin, error } = await supabase.rpc("is_admin");
-  if (error || !isAdmin) return { error: "You do not have permission to do this." } as const;
+  if (error || !isAdmin) return { error: "You do not have permission to do this." };
 
-  return { supabase } as const;
+  return { supabase };
 }
 
 const orNull = (s: string) => (s.trim() ? s.trim() : null);

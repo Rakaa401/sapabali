@@ -14,7 +14,7 @@ export async function createKnowledge(values: KnowledgeFormValues): Promise<Acti
   }
 
   const admin = await getAdminClient();
-  if ("error" in admin) return { ok: false, error: admin.error };
+ if ("error" in admin) return { ok: false, error: admin.error ?? "Unauthorized" };
 
   for (let attempt = 0; attempt < 3; attempt++) {
     const { data, error } = await admin.supabase

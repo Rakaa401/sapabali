@@ -1,17 +1,15 @@
 
-import LogoutButton from "@/components/admin/logout-button";
-
 export default function AdminPage() {
   return (
-    <main className="flex min-h-screen items-start justify-between bg-zinc-950 p-8 text-white">
+    <div className="space-y-2">
       <div>
-        <h1 className="text-2xl font-semibold">SapaBali Admin</h1>
-        <p className="mt-2 text-zinc-400">
-          Authentication and admin authorization are working.
+        <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">
+          Overview
+        </h1>
+        <p className="text-sm text-zinc-500">
+          Welcome to your SapaBali administration workspace.
         </p>
       </div>
-
-      <LogoutButton />
-    </main>
+    </div>
   );
 }

@@ -1,6 +1,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import AdminSidebar from "@/components/admin/sidebar";
 
 export default async function AdminLayout({
   children,
@@ -27,5 +28,12 @@ export default async function AdminLayout({
     redirect("/admin/login?error=unauthorized");
   }
 
-  return <>{children}</>;
+  return (
+    <div className="min-h-screen bg-zinc-50">
+      <AdminSidebar />
+      <main className="min-h-screen pt-16 lg:pl-64 lg:pt-0">
+        <div className="p-6 lg:p-8">{children}</div>
+      </main>
+    </div>
+  );
 }

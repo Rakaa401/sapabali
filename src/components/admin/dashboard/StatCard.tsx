@@ -31,7 +31,7 @@ export default function StatCard({
       </div>
 
       <p className="mt-4 text-3xl font-semibold tabular-nums tracking-tight text-zinc-950">
-        {value}
+        {typeof value === "number" ? value.toLocaleString("id-ID") : value}
       </p>
       <p className="mt-1 text-xs text-zinc-400">{description}</p>
     </div>

@@ -1,17 +1,26 @@
 import Link from "next/link";
 import { ArrowRight, FileText } from "lucide-react";
+import Badge from "@/components/ui/badge";
 
 type KnowledgeItem = {
-  id: number;
+  id: string;
   title: string;
-  category: string;
+  category: string | null;
   status: string;
-  updatedAt: string;
+  updated_at: string;
 };
 
-const items: KnowledgeItem[] = [];
+export default function RecentKnowledge({
+  items,
+}: {
+  items: KnowledgeItem[];
+}) {
+  const statusVariants = {
+    published: "success",
+    draft: "warning",
+    archived: "default",
+  } as const;
 
-export default function RecentKnowledge() {
   return (
     <section className="h-full overflow-hidden rounded-xl border border-zinc-200 bg-white">
       <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
@@ -59,7 +68,9 @@ export default function RecentKnowledge() {
                 <th className="px-5 py-2.5 font-medium">Title</th>
                 <th className="px-5 py-2.5 font-medium">Category</th>
                 <th className="px-5 py-2.5 font-medium">Status</th>
-                <th className="px-5 py-2.5 text-right font-medium">Updated</th>
+                <th className="px-5 py-2.5 text-right font-medium">
+                  Updated
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -68,10 +79,26 @@ export default function RecentKnowledge() {
                   <td className="px-5 py-3 font-medium text-zinc-900">
                     {item.title}
                   </td>
-                  <td className="px-5 py-3 text-zinc-500">{item.category}</td>
-                  <td className="px-5 py-3 text-zinc-500">{item.status}</td>
+                  <td className="px-5 py-3 text-zinc-500">
+                    {item.category || "Uncategorized"}
+                  </td>
+                  <td className="px-5 py-3">
+                    <Badge
+                      variant={
+                        statusVariants[
+                          item.status as keyof typeof statusVariants
+                        ] ?? "default"
+                      }
+                    >
+                      {item.status}
+                    </Badge>
+                  </td>
                   <td className="px-5 py-3 text-right text-zinc-400">
-                    {item.updatedAt}
+                    {new Date(item.updated_at).toLocaleDateString("id-ID", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
                   </td>
                 </tr>
               ))}

@@ -1,29 +1,24 @@
-
-import { GoogleGenAI } from "@google/genai";
-
-const apiKey = process.env.GEMINI_API_KEY;
-
-if (!apiKey) {
-  throw new Error("GEMINI_API_KEY is not configured.");
-}
-
-const ai = new GoogleGenAI({ apiKey });
+import { getGeminiClient, getGeminiErrorMessage } from "@/lib/ai/gemini";
 
 export async function generateEmbedding(content: string): Promise<number[]> {
-  const response = await ai.models.embedContent({
-    model: process.env.GEMINI_MODEL || "gemini-embedding-001",
-    contents: content,
-    config: {
-      taskType: "RETRIEVAL_DOCUMENT",
-      outputDimensionality: 768,
-    },
-  });
+  try {
+    const response = await getGeminiClient().models.embedContent({
+      model: process.env.GEMINI_MODEL || "gemini-embedding-001",
+      contents: content,
+      config: {
+        taskType: "RETRIEVAL_DOCUMENT",
+        outputDimensionality: 768,
+      },
+    });
 
-  const values = response.embeddings?.[0]?.values;
+    const values = response.embeddings?.[0]?.values;
 
-  if (!values || values.length !== 768) {
-    throw new Error("Gemini returned an invalid embedding.");
+    if (!values || values.length !== 768) {
+      throw new Error("Gemini returned an invalid embedding.");
+    }
+
+    return values;
+  } catch (error) {
+    throw new Error(getGeminiErrorMessage(error));
   }
-
-  return values;
 }

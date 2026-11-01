@@ -12,7 +12,7 @@ export default async function EditKnowledgePage({
   if (!item) notFound();
 
   return (
-    <main className="mx-auto max-w-3xl p-6">
+    <main className="mx-auto ">
       <h1 className="mb-6 text-2xl font-semibold text-slate-900">Edit knowledge</h1>
       <KnowledgeForm mode="edit" initial={item} destinations={destinations} />
     </main>

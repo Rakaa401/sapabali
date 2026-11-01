@@ -9,8 +9,21 @@ import { CATEGORIES, LANGUAGES } from "@/lib/knowledge/constants";
 import { validateKnowledge, type FieldErrors } from "@/lib/knowledge/validation";
 import type { Destination, KnowledgeFormValues, KnowledgeItem } from "@/types/knowledge";
 
-const fieldClass =
-  "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600";
+function fieldClass(error?: string) {
+  return [
+    "block w-full rounded-md border bg-white px-3 py-2 text-sm leading-5 text-slate-900 placeholder:text-slate-400",
+    "focus:outline-none focus-visible:ring-2",
+    error
+      ? "border-red-400 focus:border-red-600 focus-visible:ring-red-600/20"
+      : "border-slate-300 focus:border-emerald-700 focus-visible:ring-emerald-700/30",
+  ].join(" ");
+}
+
+const primaryBtn =
+  "inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-md bg-emerald-700 px-4 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 disabled:opacity-60";
+
+const secondaryBtn =
+  "inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400";
 
 export default function KnowledgeForm({
   mode,
@@ -66,76 +79,149 @@ export default function KnowledgeForm({
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
-      <Field label="Title" error={errors.title} htmlFor="title">
-        <input id="title" className={fieldClass} value={values.title} onChange={(e) => set("title", e.target.value)} />
-      </Field>
-
-      <Field label="Content" error={errors.content} htmlFor="content">
-        <textarea id="content" rows={8} className={fieldClass} value={values.content} onChange={(e) => set("content", e.target.value)} />
-      </Field>
-
-      <div className="grid gap-5 sm:grid-cols-3">
-        <Field label="Category" error={errors.category} htmlFor="category">
-          <select id="category" className={fieldClass} value={values.category} onChange={(e) => set("category", e.target.value)}>
-            <option value="">Select category</option>
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Language" error={errors.language} htmlFor="language">
-          <select id="language" className={fieldClass} value={values.language} onChange={(e) => set("language", e.target.value as "id" | "en")}>
-            {LANGUAGES.map((l) => (
-              <option key={l.value} value={l.value}>{l.label}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Destination" error={errors.destination_id} htmlFor="destination">
-          <select id="destination" className={fieldClass} value={values.destination_id} onChange={(e) => set("destination_id", e.target.value)}>
-            <option value="">Select destination</option>
-            {destinations.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}{d.status !== "published" ? ` (${d.status})` : ""}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
+      {serverError && (
+        <p
+          role="alert"
+          className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+        >
+          {serverError}
+        </p>
+      )}
 
       {destinations.length === 0 && (
-        <p className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
           No destinations yet. Add at least one destination in Supabase before saving knowledge.
         </p>
       )}
 
-      <fieldset className="space-y-5 rounded-lg border border-slate-200 p-4">
-        <legend className="px-2 text-sm font-medium text-slate-700">Source</legend>
-        <div className="grid gap-5 sm:grid-cols-2">
-          <Field label="Source name" htmlFor="source_name">
-            <input id="source_name" className={fieldClass} value={values.source_name} onChange={(e) => set("source_name", e.target.value)} />
+      <div className="space-y-5">
+        {/* Main content */}
+        <Panel title="Entry">
+          <Field label="Title" error={errors.title} htmlFor="title">
+            <input
+              id="title"
+              className={fieldClass(errors.title)}
+              value={values.title}
+              onChange={(e) => set("title", e.target.value)}
+            />
           </Field>
-          <Field label="Source URL" error={errors.source_url} htmlFor="source_url">
-            <input id="source_url" className={fieldClass} placeholder="https://" value={values.source_url} onChange={(e) => set("source_url", e.target.value)} />
+
+          <Field label="Content" error={errors.content} htmlFor="content">
+            <textarea
+              id="content"
+              rows={8}
+              className={fieldClass(errors.content)}
+              value={values.content}
+              onChange={(e) => set("content", e.target.value)}
+            />
           </Field>
+        </Panel>
+
+        {/* Details + Source berdampingan */}
+        <div className="grid gap-5 md:grid-cols-2 md:items-start">
+          <Panel title="Details">
+            <Field label="Category" error={errors.category} htmlFor="category">
+              <SelectBox
+                id="category"
+                className={fieldClass(errors.category)}
+                value={values.category}
+                onChange={(e) => set("category", e.target.value)}
+              >
+                <option value="">Select category</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </SelectBox>
+            </Field>
+
+            <Field label="Language" error={errors.language} htmlFor="language">
+              <SelectBox
+                id="language"
+                className={fieldClass(errors.language)}
+                value={values.language}
+                onChange={(e) => set("language", e.target.value as "id" | "en")}
+              >
+                {LANGUAGES.map((l) => (
+                  <option key={l.value} value={l.value}>
+                    {l.label}
+                  </option>
+                ))}
+              </SelectBox>
+            </Field>
+
+            <Field label="Destination" error={errors.destination_id} htmlFor="destination">
+              <SelectBox
+                id="destination"
+                className={fieldClass(errors.destination_id)}
+                value={values.destination_id}
+                onChange={(e) => set("destination_id", e.target.value)}
+              >
+                <option value="">Select destination</option>
+                {destinations.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                    {d.status !== "published" ? ` (${d.status})` : ""}
+                  </option>
+                ))}
+              </SelectBox>
+            </Field>
+          </Panel>
+
+          <Panel title="Source">
+            <Field label="Name" htmlFor="source_name">
+              <input
+                id="source_name"
+                className={fieldClass()}
+                value={values.source_name}
+                onChange={(e) => set("source_name", e.target.value)}
+              />
+            </Field>
+
+            <Field label="URL" error={errors.source_url} htmlFor="source_url">
+              <input
+                id="source_url"
+                className={fieldClass(errors.source_url)}
+                placeholder="https://"
+                value={values.source_url}
+                onChange={(e) => set("source_url", e.target.value)}
+              />
+            </Field>
+
+            <Field label="Description" htmlFor="source_description">
+              <textarea
+                id="source_description"
+                rows={2}
+                className={fieldClass()}
+                value={values.source_description}
+                onChange={(e) => set("source_description", e.target.value)}
+              />
+            </Field>
+          </Panel>
         </div>
-        <Field label="Source description" htmlFor="source_description">
-          <textarea id="source_description" rows={2} className={fieldClass} value={values.source_description} onChange={(e) => set("source_description", e.target.value)} />
-        </Field>
-      </fieldset>
+      </div>
 
-      {serverError && (
-        <p role="alert" className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-800">{serverError}</p>
-      )}
-
-      <div className="flex gap-3">
-        <button type="submit" disabled={pending} className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 disabled:opacity-60">
-          {pending ? "Saving..." : mode === "create" ? "Save as draft" : "Save changes"}
-        </button>
-        <Link href="/admin/knowledge" className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+      <div className="flex justify-end gap-2 border-t border-slate-200 pt-4">
+        <Link href="/admin/knowledge" className={secondaryBtn}>
           Cancel
         </Link>
+        <button type="submit" disabled={pending} className={primaryBtn}>
+          {pending ? "Saving..." : mode === "create" ? "Save as draft" : "Save changes"}
+        </button>
       </div>
     </form>
+  );
+}
+
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-md border border-slate-200 bg-white">
+      <h2 className="border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-900">
+        {title}
+      </h2>
+      <div className="space-y-4 p-4">{children}</div>
+    </section>
   );
 }
 
@@ -152,9 +238,40 @@ function Field({
 }) {
   return (
     <div>
-      <label htmlFor={htmlFor} className="mb-1 block text-sm font-medium text-slate-800">{label}</label>
+      <label htmlFor={htmlFor} className="mb-1 block text-sm font-medium text-slate-800">
+        {label}
+      </label>
       {children}
       {error && <p className="mt-1 text-sm text-red-700">{error}</p>}
+    </div>
+  );
+}
+
+function SelectBox({
+  className = "",
+  children,
+  ...props
+}: React.ComponentProps<"select">) {
+  return (
+    <div className="relative">
+      <select
+        {...props}
+        className={`${className} cursor-pointer appearance-none pr-9 disabled:cursor-not-allowed disabled:bg-slate-50`}
+      >
+        {children}
+      </select>
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 20 20"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
+      >
+        <path d="M5 7.5l5 5 5-5" />
+      </svg>
     </div>
   );
 }

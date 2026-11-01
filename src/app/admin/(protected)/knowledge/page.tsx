@@ -39,7 +39,7 @@ export default async function KnowledgeListPage({
   const last = Math.min(page * PAGE_SIZE, total);
 
   return (
-    <main className="mx-auto max-w-6xl p-6">
+    <main className="mx-auto ">
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Knowledge base</h1>

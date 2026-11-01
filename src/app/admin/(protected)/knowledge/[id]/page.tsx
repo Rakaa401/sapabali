@@ -4,6 +4,7 @@ import DeleteKnowledgeButton from "@/components/knowledge/DeleteKnowledgeButton"
 import { IndexingBadge, StatusBadge } from "@/components/knowledge/StatusBadge";
 import { formatDate } from "@/lib/knowledge/format";
 import { getKnowledgeById } from "@/lib/knowledge/queries";
+import { KnowledgePublicationActions } from "@/components/knowledge/KnowledgePublicationActions";
 
 const primaryBtn =
   "inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-md bg-emerald-700 px-4 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2";
@@ -58,10 +59,12 @@ export default async function KnowledgeDetailPage({
           <Link href={`/admin/knowledge/${item.id}/edit`} className={primaryBtn}>
             Edit
           </Link>
-          {/* Dihubungkan di 02.12 */}
-          <button type="button" disabled className={secondaryBtn}>
-            {item.status === "published" ? "Unpublish" : "Publish"}
-          </button>
+   <KnowledgePublicationActions
+  id={item.id}
+  status={item.status}
+  primaryClassName={primaryBtn}
+  secondaryClassName={secondaryBtn}
+/>
           <DeleteKnowledgeButton
             id={item.id}
             title={item.title}

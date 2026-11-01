@@ -17,12 +17,29 @@ export async function getAdminClient(): Promise<AdminClientResult> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
   if (!user) return { error: "You must be signed in." };
 
   const { data: isAdmin, error } = await supabase.rpc("is_admin");
-  if (error || !isAdmin) return { error: "You do not have permission to do this." };
+
+  if (error || !isAdmin) {
+    return { error: "You do not have permission to do this." };
+  }
 
   return { supabase };
+}
+
+export async function isValidKnowledgeCategory(
+  supabase: SupabaseServerClient,
+  category: string,
+) {
+  const { data, error } = await supabase
+    .from("knowledge_categories")
+    .select("id")
+    .eq("name", category.trim())
+    .maybeSingle();
+
+  return !error && Boolean(data);
 }
 
 const orNull = (s: string) => (s.trim() ? s.trim() : null);

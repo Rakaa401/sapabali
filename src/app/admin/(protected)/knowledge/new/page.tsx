@@ -1,19 +1,23 @@
 import KnowledgeForm from "@/components/knowledge/KnowledgeForm";
 import { getDestinations } from "@/lib/knowledge/queries";
+import { getKnowledgeCategories } from "@/lib/knowledge/categories";
 
 export default async function NewKnowledgePage() {
-  const destinations = await getDestinations();
+  const [destinations, categories] = await Promise.all([
+    getDestinations(),
+    getKnowledgeCategories(),
+  ]);
 
   return (
-    <main className="p-8">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-slate-900">Create knowledge</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Add an entry to the knowledge base. New entries are saved as drafts.
-        </p>
-      </header>
-
-      <KnowledgeForm mode="create" destinations={destinations} />
+    <main className="mx-auto  space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold">Create knowledge</h1>
+      </div>
+      <KnowledgeForm
+        mode="create"
+        destinations={destinations}
+        categories={categories}
+      />
     </main>
   );
 }

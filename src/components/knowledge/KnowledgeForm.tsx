@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { createKnowledge } from "@/lib/knowledge/actions/create";
 import { updateKnowledge } from "@/lib/knowledge/actions/update";
-import { CATEGORIES, LANGUAGES } from "@/lib/knowledge/constants";
+import { LANGUAGES } from "@/lib/knowledge/constants";
+import type { KnowledgeCategory } from "@/lib/knowledge/categories";
 import { validateKnowledge, type FieldErrors } from "@/lib/knowledge/validation";
 import type { Destination, KnowledgeFormValues, KnowledgeItem } from "@/types/knowledge";
 
@@ -29,10 +30,12 @@ export default function KnowledgeForm({
   mode,
   initial,
   destinations,
+  categories,
 }: {
   mode: "create" | "edit";
   initial?: KnowledgeItem;
   destinations: Destination[];
+  categories: KnowledgeCategory[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -128,11 +131,11 @@ export default function KnowledgeForm({
                 onChange={(e) => set("category", e.target.value)}
               >
                 <option value="">Select category</option>
-                {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
+               {categories.map((category) => (
+  <option key={category.id} value={category.name}>
+    {category.name}
+  </option>
+))}
               </SelectBox>
             </Field>
 

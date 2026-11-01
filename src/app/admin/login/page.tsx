@@ -1,9 +1,9 @@
-
 "use client";
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { recordAdminLogin } from "@/lib/activity/actions";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -30,6 +30,11 @@ export default function AdminLoginPage() {
       return;
     }
 
+    // Catat login ke activity log. Kalau gagal, login tetap lanjut.
+    try {
+      await recordAdminLogin();
+    } catch {}
+
     router.replace("/admin");
     router.refresh();
   }
@@ -41,9 +46,7 @@ export default function AdminLoginPage() {
           <p className="text-sm font-medium tracking-widest text-emerald-400">
             SAPABALI
           </p>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Admin Login
-          </h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Admin Login</h1>
           <p className="text-sm text-zinc-400">
             Sign in to access the SapaBali administration panel.
           </p>

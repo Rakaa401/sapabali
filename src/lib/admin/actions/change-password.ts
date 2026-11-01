@@ -1,5 +1,6 @@
 "use server";
 
+import { logActivity } from "@/lib/activity/log";
 import { getAdminSession } from "../session";
 import type { ActionState } from "../types";
 import { validatePasswordChange, type PasswordInput } from "../validation";
@@ -30,6 +31,12 @@ export async function changePassword(input: PasswordInput): Promise<ActionState>
 
   const { error } = await session.supabase.auth.updateUser({ password: input.newPassword });
   if (error) return { ok: false, error: error.message };
+
+  // Password sendiri TIDAK dicatat, hanya kejadiannya
+  await logActivity(session.supabase, {
+    action: "settings_password_changed",
+    description: "Changed account password",
+  });
 
   return { ok: true, message: "Password changed." };
 }

@@ -2,8 +2,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   MapPin,
@@ -14,24 +14,41 @@ import {
   Menu,
   X,
   LogOut,
+  ChevronDown,
+  List,
+  Tags,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
 
 const navigation = [
   { label: "Overview", href: "/admin", icon: LayoutDashboard },
   { label: "Destinations", href: "/admin/destinations", icon: MapPin },
-  { label: "Knowledge Base", href: "/admin/knowledge", icon: BookOpen },
   { label: "AI Logs", href: "/admin/ai-logs", icon: BrainCircuit },
   { label: "Activity", href: "/admin/activity", icon: Activity },
   { label: "Settings", href: "/admin/settings", icon: Settings },
+];
+
+const knowledgeLinks = [
+  { label: "All Knowledge", href: "/admin/knowledge", icon: List },
+  { label: "Categories", href: "/admin/knowledge/categories", icon: Tags },
 ];
 
 export default function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [knowledgeOpen, setKnowledgeOpen] = useState(
+    pathname.startsWith("/admin/knowledge")
+  );
   const [loggingOut, setLoggingOut] = useState(false);
+
+  const knowledgeActive = pathname.startsWith("/admin/knowledge");
+
+  useEffect(() => {
+    if (knowledgeActive) {
+      setKnowledgeOpen(true);
+    }
+  }, [knowledgeActive]);
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -46,6 +63,10 @@ export default function AdminSidebar() {
 
     router.replace("/admin/login");
     router.refresh();
+  }
+
+  function closeSidebar() {
+    setOpen(false);
   }
 
   return (
@@ -70,7 +91,7 @@ export default function AdminSidebar() {
         <button
           type="button"
           aria-label="Close sidebar overlay"
-          onClick={() => setOpen(false)}
+          onClick={closeSidebar}
           className="fixed inset-0 z-40 bg-black/30 lg:hidden"
         />
       )}
@@ -93,19 +114,93 @@ export default function AdminSidebar() {
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-3">
-          {navigation.map((item) => {
-            const active =
-              item.href === "/admin"
-                ? pathname === item.href
-                : pathname.startsWith(item.href);
+          <Link
+            href="/admin"
+            onClick={closeSidebar}
+            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+              pathname === "/admin"
+                ? "bg-emerald-50 text-emerald-700"
+                : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
+            }`}
+          >
+            <LayoutDashboard size={18} />
+            Overview
+          </Link>
 
+          <Link
+            href="/admin/destinations"
+            onClick={closeSidebar}
+            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+              pathname.startsWith("/admin/destinations")
+                ? "bg-emerald-50 text-emerald-700"
+                : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
+            }`}
+          >
+            <MapPin size={18} />
+            Destinations
+          </Link>
+
+          <div>
+            <button
+              type="button"
+              onClick={() => setKnowledgeOpen(!knowledgeOpen)}
+              aria-expanded={knowledgeOpen}
+              className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+                knowledgeActive
+                  ? ""
+                  : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
+              }`}
+            >
+              <span className="flex items-center gap-3">
+                <BookOpen size={18} />
+                Knowledge Base
+              </span>
+              <ChevronDown
+                size={16}
+                className={`transition-transform duration-200 ${
+                  knowledgeOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {knowledgeOpen && (
+         <div className="ml-4 mt-1 space-y-1 border-l border-transparent pl-4">
+                {knowledgeLinks.map((item) => {
+                  const Icon = item.icon;
+                  const active =
+                    item.href === "/admin/knowledge"
+                      ? pathname === item.href
+                      : pathname.startsWith(item.href);
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={closeSidebar}
+                      className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
+                        active
+                          ? "bg-emerald-50 font-medium text-emerald-700"
+                          : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                      }`}
+                    >
+                      <Icon size={16} />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {navigation.slice(2).map((item) => {
             const Icon = item.icon;
+            const active = pathname.startsWith(item.href);
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={() => setOpen(false)}
+                onClick={closeSidebar}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
                   active
                     ? "bg-emerald-50 text-emerald-700"

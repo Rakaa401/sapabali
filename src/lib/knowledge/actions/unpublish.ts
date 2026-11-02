@@ -12,18 +12,12 @@ export async function unpublishKnowledge(
     return { ok: false, error: admin.error };
   }
 
-  const { data, error } = await admin.supabase
-    .from("knowledge_items")
-    .update({ status: "unpublished" })
-    .eq("id", id)
-    .select("id")
-    .maybeSingle();
+  const { error } = await admin.supabase.rpc("unpublish_knowledge", {
+    p_knowledge_item_id: id,
+  });
 
-  if (error || !data) {
-    return {
-      ok: false,
-      error: error?.message ?? "Knowledge not found or could not be unpublished.",
-    };
+  if (error) {
+    return { ok: false, error: error.message };
   }
 
   revalidatePath("/admin/knowledge");

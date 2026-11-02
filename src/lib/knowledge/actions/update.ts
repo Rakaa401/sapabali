@@ -9,6 +9,7 @@ import {
   type ActionResult,
 } from "../server-utils";
 import { validateKnowledge } from "../validation";
+import { indexKnowledge } from "@/lib/rag/index-knowledge";
 
 export async function updateKnowledge(
   id: string,
@@ -39,14 +40,17 @@ export async function updateKnowledge(
     };
   }
 
-  const { data: existing } = await admin.supabase
+  const { data: existing, error: fetchError } = await admin.supabase
     .from("knowledge_items")
-    .select("title, content, indexing_status")
+    .select("title, content, status, indexing_status")
     .eq("id", id)
     .maybeSingle();
 
-  if (!existing) {
-    return { ok: false, error: "Knowledge not found." };
+  if (fetchError || !existing) {
+    return {
+      ok: false,
+      error: fetchError?.message ?? "Knowledge not found.",
+    };
   }
 
   const patch: Record<string, unknown> = toDbValues(values);
@@ -54,15 +58,16 @@ export async function updateKnowledge(
   const contentChanged =
     existing.title !== patch.title || existing.content !== patch.content;
 
-  if (contentChanged && existing.indexing_status !== "pending") {
-    patch.indexing_status = "stale";
+  if (contentChanged) {
+    patch.indexing_status = "pending";
   }
 
   const { data, error } = await admin.supabase
     .from("knowledge_items")
     .update(patch)
     .eq("id", id)
-    .select("id");
+    .select("id")
+    .maybeSingle();
 
   if (error) {
     if (error.code === "23503") {
@@ -75,11 +80,25 @@ export async function updateKnowledge(
     return { ok: false, error: error.message };
   }
 
-  if (!data || data.length === 0) {
-    return {
-      ok: false,
-      error: "Knowledge not found or you do not have permission.",
-    };
+  if (!data) {
+    return { ok: false, error: "Knowledge not found." };
+  }
+
+  if (contentChanged && existing.status === "published") {
+    try {
+      await indexKnowledge(id);
+    } catch (error) {
+      revalidatePath("/admin/knowledge");
+      revalidatePath(`/admin/knowledge/${id}`);
+
+      return {
+        ok: false,
+        error:
+          error instanceof Error
+            ? `Content saved, but re-indexing failed: ${error.message}. Use the Re-index action to retry.`
+            : "Content saved, but re-indexing failed. Use the Re-index action to retry.",
+      };
+    }
   }
 
   revalidatePath("/admin/knowledge");

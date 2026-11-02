@@ -8,6 +8,12 @@ import {
   Check,
   Loader2,
   X,
+  Globe,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Save,
+  Trash2,
 } from "lucide-react";
 import Input from "@/components/ui/input";
 import Textarea from "@/components/ui/textarea";
@@ -24,6 +30,20 @@ const selectClass =
   "disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400";
 
 const fieldClass = "block text-sm font-medium text-slate-800";
+
+const errorInputClass =
+  "border-red-400 focus:border-red-500 focus:ring-red-500/10";
+
+const secondaryButtonClass =
+  "inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-300 disabled:cursor-not-allowed disabled:opacity-60";
+
+const primaryButtonClass =
+  "inline-flex h-11 min-w-48 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-emerald-600 disabled:hover:shadow-sm";
+
+const LANGUAGE_LABELS: Record<string, string> = {
+  id: "Bahasa Indonesia",
+  en: "English",
+};
 
 // Tahapan yang ditampilkan selama loading (threshold = persen mulai tahap)
 const STAGES = [
@@ -44,6 +64,7 @@ type FormValues = {
   language: Language;
 };
 
+// Bentuk respons mentah dari /api/admin/ai-structuring
 interface StructuringResult {
   suggested_title: string;
   summary: string;
@@ -51,6 +72,69 @@ interface StructuringResult {
   suggested_category: string;
   important_rules: string[];
   ambiguous_information: string[];
+  // Opsional: kalau API nanti mengembalikan bahasa hasil deteksi, dipakai otomatis
+  detected_language?: string;
+}
+
+// Bentuk yang diedit reviewer (nama field dibuat netral, tanpa prefix "suggested_")
+type ReviewFields = {
+  title: string;
+  summary: string;
+  content: string;
+  category: string;
+  rules: string[];
+  ambiguities: string[];
+};
+
+// Payload yang akan diserahkan ke proses penyimpanan di 03.5.
+// status dikunci ke "draft": komponen ini tidak punya jalur untuk publish.
+export type KnowledgeDraftInput = {
+  status: "draft";
+  destination_id: string;
+  language: Language;
+  title: string;
+  summary: string;
+  content: string;
+  category: string;
+  important_rules: string[];
+  ambiguous_information: string[];
+  source_name: string;
+  source_url: string;
+  raw_content: string;
+};
+
+interface AiStructuringFormProps {
+  destinations: Destination[];
+  /**
+   * Diisi di 03.5 untuk menyimpan draft. Selama belum diisi,
+   * tombol "Save as Draft" nonaktif (tidak ada endpoint palsu).
+   * Catatan: kalau halaman induk adalah Server Component, fungsi ini harus
+   * berupa Server Action atau di-wire lewat client wrapper.
+   */
+  onSaveDraft?: (draft: KnowledgeDraftInput) => Promise<void>;
+}
+
+function toReviewFields(result: StructuringResult): ReviewFields {
+  return {
+    title: result.suggested_title ?? "",
+    summary: result.summary ?? "",
+    content: result.organized_content ?? "",
+    category: result.suggested_category ?? "",
+    rules: [...(result.important_rules ?? [])],
+    ambiguities: [...(result.ambiguous_information ?? [])],
+  };
+}
+
+function cloneFields(fields: ReviewFields): ReviewFields {
+  return {
+    ...fields,
+    rules: [...fields.rules],
+    ambiguities: [...fields.ambiguities],
+  };
+}
+
+function cleanList(items: string[]) {
+  return items.map((item) => item.trim()).filter(Boolean);
 }
 
 function getStageIndex(progress: number) {
@@ -61,11 +145,85 @@ function getStageIndex(progress: number) {
   return index;
 }
 
+function EditableList({
+  id,
+  label,
+  items,
+  onChange,
+  addLabel,
+  emptyText,
+  placeholder,
+  tone = "default",
+}: {
+  id: string;
+  label: string;
+  items: string[];
+  onChange: (items: string[]) => void;
+  addLabel: string;
+  emptyText: string;
+  placeholder?: string;
+  tone?: "default" | "warning";
+}) {
+  const toneClass =
+    tone === "warning"
+      ? "border-amber-300 focus:border-amber-500 focus:ring-amber-500/10"
+      : "";
+
+  return (
+    <div className="space-y-2">
+      <p id={`${id}-label`} className="text-sm font-medium text-zinc-700">
+        {label}
+      </p>
+
+      {items.length === 0 ? (
+        <p className="text-sm text-zinc-500">{emptyText}</p>
+      ) : (
+        <ul aria-labelledby={`${id}-label`} className="space-y-2">
+          {items.map((item, index) => (
+            <li key={index} className="flex items-start gap-2">
+              <Textarea
+                aria-label={`${label} ${index + 1}`}
+                value={item}
+                rows={2}
+                placeholder={placeholder}
+                onChange={(event) =>
+                  onChange(
+                    items.map((current, i) =>
+                      i === index ? event.target.value : current,
+                    ),
+                  )
+                }
+                className={`min-h-0 ${toneClass}`}
+              />
+              <button
+                type="button"
+                aria-label={`Remove ${label.toLowerCase()} ${index + 1}`}
+                onClick={() => onChange(items.filter((_, i) => i !== index))}
+                className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Trash2 size={16} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <button
+        type="button"
+        onClick={() => onChange([...items, ""])}
+        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-dashed border-zinc-300 px-3 text-sm font-medium text-zinc-600 transition-colors hover:border-emerald-500 hover:text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <Plus size={14} />
+        {addLabel}
+      </button>
+    </div>
+  );
+}
+
 export default function AiStructuringForm({
   destinations,
-}: {
-  destinations: Destination[];
-}) {
+  onSaveDraft,
+}: AiStructuringFormProps) {
   const [values, setValues] = useState<FormValues>({
     content: "",
     source_name: "",
@@ -77,14 +235,37 @@ export default function AiStructuringForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [result, setResult] = useState<StructuringResult | null>(null);
   const [apiError, setApiError] = useState("");
   const [progress, setProgress] = useState(0);
   const [elapsed, setElapsed] = useState(0);
 
+  // State review (03.4)
+  // source   = snapshot input asli yang dipakai saat generate (dipakai Regenerate & Save)
+  // baseline = hasil AI apa adanya, untuk deteksi edit manual & revert
+  // review   = versi yang sedang diedit reviewer
+  const [source, setSource] = useState<FormValues | null>(null);
+  const [baseline, setBaseline] = useState<ReviewFields | null>(null);
+  const [review, setReview] = useState<ReviewFields | null>(null);
+  const [detectedLanguage, setDetectedLanguage] = useState<Language>("id");
+  const [resultKey, setResultKey] = useState(0);
+  const [reviewErrors, setReviewErrors] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [savedJson, setSavedJson] = useState<string | null>(null);
+
   const abortRef = useRef<AbortController | null>(null);
   const loadingRef = useRef<HTMLDivElement | null>(null);
   const resultRef = useRef<HTMLElement | null>(null);
+
+  const reviewJson = review ? JSON.stringify(review) : "";
+  const baselineJson = baseline ? JSON.stringify(baseline) : "";
+  // Beda dari output AI -> perlu konfirmasi sebelum Regenerate menimpa
+  const isEdited = review !== null && reviewJson !== baselineJson;
+  // Beda dari versi terakhir yang disimpan (atau dari output AI kalau belum pernah disimpan)
+  const hasUnsavedChanges =
+    review !== null && reviewJson !== (savedJson ?? baselineJson);
+  // Input mentah dikunci selama generate & review supaya Regenerate selalu memakai sumber yang sama
+  const inputLocked = isGenerating || review !== null;
 
   // Progress simulasi: melambat saat mendekati PROGRESS_CAP
   useEffect(() => {
@@ -110,7 +291,20 @@ export default function AiStructuringForm({
     return () => abortRef.current?.abort();
   }, []);
 
-  // Scroll ke panel loading saat mulai, dan ke hasil saat selesai
+  // Peringatan sebelum menutup tab kalau ada edit yang belum tersimpan
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  // Scroll ke panel loading saat mulai, dan ke hasil setiap generate sukses
   useEffect(() => {
     if (isGenerating) {
       loadingRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -118,10 +312,10 @@ export default function AiStructuringForm({
   }, [isGenerating]);
 
   useEffect(() => {
-    if (result) {
+    if (resultKey > 0) {
       resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  }, [result]);
+  }, [resultKey]);
 
   function update<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -129,18 +323,100 @@ export default function AiStructuringForm({
     setMessage("");
   }
 
+  function updateReview<K extends keyof ReviewFields>(
+    key: K,
+    value: ReviewFields[K],
+  ) {
+    setReview((current) => (current ? { ...current, [key]: value } : current));
+    setReviewErrors((current) => ({ ...current, [key]: "" }));
+    setSaveError("");
+    setMessage("");
+  }
+
   function handleCancel() {
     abortRef.current?.abort();
   }
 
+  // Dipakai oleh Generate pertama maupun Regenerate.
+  // Hasil lama (kalau ada) tidak dihapus di awal, jadi kalau gagal/dibatalkan
+  // edit reviewer tetap aman.
+  async function runStructuring(input: FormValues) {
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setApiError("");
+    setMessage("");
+    setIsGenerating(true);
+
+    try {
+      const response = await fetch("/api/admin/ai-structuring", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(input),
+        signal: controller.signal,
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Failed to structure content.");
+      }
+
+      if (!payload.data) {
+        throw new Error("The AI returned an invalid response.");
+      }
+
+      // Lompat ke 100% sebentar biar terasa selesai
+      setProgress(100);
+      await new Promise((resolve) => setTimeout(resolve, 450));
+
+      const data = payload.data as StructuringResult;
+      const fields = toReviewFields(data);
+
+      setSource(input);
+      setBaseline(fields);
+      setReview(cloneFields(fields));
+      setDetectedLanguage(
+        data.detected_language === "id" || data.detected_language === "en"
+          ? data.detected_language
+          : input.language,
+      );
+      setReviewErrors({});
+      setSaveError("");
+      setSavedJson(null);
+      setResultKey((key) => key + 1);
+      setMessage(
+        "Content successfully structured. Review and edit the result below.",
+      );
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setMessage(
+          review
+            ? "Generation cancelled. Your current draft was kept."
+            : "Generation cancelled.",
+        );
+      } else {
+        setApiError(
+          error instanceof Error
+            ? error.message
+            : "Something went wrong. Please try again.",
+        );
+      }
+    } finally {
+      setIsGenerating(false);
+      abortRef.current = null;
+    }
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isGenerating) return;
+    if (isGenerating || review) return;
 
     setErrors({});
     setMessage("");
     setApiError("");
-    setResult(null);
 
     const nextErrors: Record<string, string> = {};
 
@@ -173,60 +449,122 @@ export default function AiStructuringForm({
       return;
     }
 
-    const controller = new AbortController();
-    abortRef.current = controller;
-    setIsGenerating(true);
+    await runStructuring(values);
+  }
+
+  async function handleRegenerate() {
+    if (!source || isGenerating || isSaving) return;
+
+    if (
+      isEdited &&
+      !window.confirm(
+        "Regenerating will replace your manual edits with a new AI result. Continue?",
+      )
+    ) {
+      return;
+    }
+
+    await runStructuring(source);
+  }
+
+  function handleRevert() {
+    if (!baseline || isSaving) return;
+
+    if (!window.confirm("Revert all manual edits back to the AI output?")) {
+      return;
+    }
+
+    setReview(cloneFields(baseline));
+    setReviewErrors({});
+    setSaveError("");
+    setMessage("");
+  }
+
+  // Kembali ke form input (hasil review dibuang)
+  function handleEditInput() {
+    if (isGenerating || isSaving) return;
+
+    if (
+      hasUnsavedChanges &&
+      !window.confirm(
+        "Discard this result and edit the original input? Your manual edits will be lost.",
+      )
+    ) {
+      return;
+    }
+
+    setReview(null);
+    setBaseline(null);
+    setSource(null);
+    setSavedJson(null);
+    setReviewErrors({});
+    setSaveError("");
+    setApiError("");
+    setMessage("");
+  }
+
+  async function handleSaveDraft() {
+    if (!review || !source || !onSaveDraft || isSaving || isGenerating) return;
+
+    const nextErrors: Record<string, string> = {};
+
+    if (!review.title.trim()) {
+      nextErrors.title = "Title is required.";
+    }
+
+    if (!review.content.trim()) {
+      nextErrors.content = "Content is required.";
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setReviewErrors(nextErrors);
+      return;
+    }
+
+    const draft: KnowledgeDraftInput = {
+      status: "draft",
+      destination_id: source.destination_id,
+      language: detectedLanguage,
+      title: review.title.trim(),
+      summary: review.summary.trim(),
+      content: review.content.trim(),
+      category: review.category.trim(),
+      important_rules: cleanList(review.rules),
+      ambiguous_information: cleanList(review.ambiguities),
+      source_name: source.source_name.trim(),
+      source_url: source.source_url.trim(),
+      raw_content: source.content,
+    };
+
+    setIsSaving(true);
+    setSaveError("");
+    setMessage("");
 
     try {
-      const response = await fetch("/api/admin/ai-structuring", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(values),
-        signal: controller.signal,
-      });
-
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error || "Failed to structure content.");
-      }
-
-      if (!payload.data) {
-        throw new Error("The AI returned an invalid response.");
-      }
-
-      // Lompat ke 100% sebentar biar terasa selesai
-      setProgress(100);
-      await new Promise((resolve) => setTimeout(resolve, 450));
-
-      setResult(payload.data);
-      setMessage("Content successfully structured. Review the result below.");
+      await onSaveDraft(draft);
+      setSavedJson(reviewJson);
+      setMessage("Draft saved. It has not been published.");
     } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        setMessage("Generation cancelled.");
-      } else {
-        setApiError(
-          error instanceof Error
-            ? error.message
-            : "Something went wrong. Please try again.",
-        );
-      }
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "Failed to save the draft. Please try again.",
+      );
     } finally {
-      setIsGenerating(false);
-      abortRef.current = null;
+      setIsSaving(false);
     }
   }
 
   const percent = Math.round(progress);
   const stageIndex = getStageIndex(progress);
+  const languageLabel =
+    LANGUAGE_LABELS[detectedLanguage] ?? String(detectedLanguage);
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
-      {/* fieldset disabled = semua input terkunci selama proses berjalan */}
+      {/* fieldset disabled = input asli terkunci selama generate & review */}
       <fieldset
-        disabled={isGenerating}
+        disabled={inputLocked}
         className="m-0 min-w-0 space-y-6 border-0 p-0"
       >
         <section className="rounded-lg border border-slate-200 bg-white">
@@ -259,11 +597,7 @@ export default function AiStructuringForm({
               aria-describedby={
                 errors.content ? "content-count content-error" : "content-count"
               }
-              className={
-                errors.content
-                  ? "border-red-400 focus:border-red-500 focus:ring-red-500/10"
-                  : ""
-              }
+              className={errors.content ? errorInputClass : ""}
             />
 
             <div className="flex items-start justify-between gap-3">
@@ -326,11 +660,7 @@ export default function AiStructuringForm({
                 onChange={(event) => update("source_url", event.target.value)}
                 placeholder="https://example.com/article"
                 aria-invalid={Boolean(errors.source_url)}
-                className={
-                  errors.source_url
-                    ? "border-red-400 focus:border-red-500 focus:ring-red-500/10"
-                    : ""
-                }
+                className={errors.source_url ? errorInputClass : ""}
               />
               {errors.source_url && (
                 <p className="text-sm text-red-600">{errors.source_url}</p>
@@ -418,37 +748,39 @@ export default function AiStructuringForm({
         </div>
       )}
 
-      {/* Action bar */}
-      <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 pt-5">
-        {isGenerating && (
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-300"
-          >
-            <X size={16} />
-            Cancel
-          </button>
-        )}
-
-        <button
-          type="submit"
-          disabled={isGenerating}
-          className="inline-flex h-11 min-w-48 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-emerald-600 disabled:hover:shadow-sm"
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 size={16} className="animate-spin" />
-              Structuring... {percent}%
-            </>
-          ) : (
-            <>
-              <Sparkles size={16} />
-              Generate Structure
-            </>
+      {/* Action bar generate (hanya sebelum ada hasil, atau saat proses berjalan) */}
+      {(isGenerating || !review) && (
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 pt-5">
+          {isGenerating && (
+            <button
+              type="button"
+              onClick={handleCancel}
+              className={secondaryButtonClass}
+            >
+              <X size={16} />
+              Cancel
+            </button>
           )}
-        </button>
-      </div>
+
+          <button
+            type="submit"
+            disabled={isGenerating}
+            className={primaryButtonClass}
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Structuring... {percent}%
+              </>
+            ) : (
+              <>
+                <Sparkles size={16} />
+                Generate Structure
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Loading panel */}
       {isGenerating && (
@@ -461,9 +793,7 @@ export default function AiStructuringForm({
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900">
-                {percent >= 100
-                  ? "Done!"
-                  : `${STAGES[stageIndex].label}...`}
+                {percent >= 100 ? "Done!" : `${STAGES[stageIndex].label}...`}
               </h2>
               <p className="mt-1 text-xs text-zinc-500">
                 This usually takes 10–30 seconds. Please keep this page open.
@@ -539,86 +869,208 @@ export default function AiStructuringForm({
         </div>
       )}
 
-      {result && !isGenerating && (
+      {/* Review & edit */}
+      {review && !isGenerating && (
         <section
           ref={resultRef}
           className="scroll-mt-6 space-y-5 rounded-xl border border-zinc-200 bg-white p-6"
         >
-          <div>
-            <h2 className="text-lg font-semibold text-zinc-900">
-              AI Structuring Result
-            </h2>
-            <p className="mt-1 text-sm text-zinc-500">
-              Review the generated information before saving it to the
-              knowledge base.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-zinc-700">Suggested Title</p>
-            <div className="rounded-lg bg-zinc-50 p-3 text-sm text-zinc-900">
-              {result.suggested_title}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-zinc-700">Summary</p>
-            <div className="whitespace-pre-wrap rounded-lg bg-zinc-50 p-3 text-sm text-zinc-700">
-              {result.summary}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-zinc-700">
-              Organized Content
-            </p>
-            <div className="whitespace-pre-wrap rounded-lg bg-zinc-50 p-3 text-sm text-zinc-700">
-              {result.organized_content}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-zinc-700">
-              Suggested Category
-            </p>
-            <div className="rounded-lg bg-zinc-50 p-3 text-sm text-zinc-700">
-              {result.suggested_category || "No category suggested"}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-zinc-700">
-              Important Rules & Instructions
-            </p>
-            {result.important_rules.length > 0 ? (
-              <ul className="list-disc space-y-1 pl-5 text-sm text-zinc-700">
-                {result.important_rules.map((rule, index) => (
-                  <li key={index}>{rule}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-zinc-500">
-                No explicit rules identified.
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-zinc-900">
+                Review & Edit AI Result
+              </h2>
+              <p className="mt-1 max-w-xl text-sm text-zinc-500">
+                Check the generated information and edit anything that needs
+                fixing. Nothing is published from this screen. Regenerate uses
+                your original input, which stays locked while you review.
               </p>
-            )}
+            </div>
+
+            <div
+              title="Based on the language selected for this generation"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-700"
+            >
+              <Globe size={14} className="text-emerald-700" />
+              Language: {languageLabel}
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-zinc-700">
-              Ambiguous Information
-            </p>
-            {result.ambiguous_information.length > 0 ? (
-              <ul className="list-disc space-y-1 pl-5 text-sm text-amber-700">
-                {result.ambiguous_information.map((item, index) => (
-                  <li key={index}>{item}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-zinc-500">
-                No ambiguous information identified.
-              </p>
-            )}
+          <fieldset
+            disabled={isSaving}
+            className="m-0 min-w-0 space-y-5 border-0 p-0"
+          >
+            <div className="space-y-1.5">
+              <label htmlFor="review-title" className={fieldClass}>
+                Title <span className="text-red-600">*</span>
+              </label>
+              <Input
+                id="review-title"
+                value={review.title}
+                onChange={(event) => updateReview("title", event.target.value)}
+                aria-invalid={Boolean(reviewErrors.title)}
+                aria-describedby={
+                  reviewErrors.title ? "review-title-error" : undefined
+                }
+                className={reviewErrors.title ? errorInputClass : ""}
+              />
+              {reviewErrors.title && (
+                <p id="review-title-error" className="text-sm text-red-600">
+                  {reviewErrors.title}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="review-summary" className={fieldClass}>
+                Summary
+              </label>
+              <Textarea
+                id="review-summary"
+                value={review.summary}
+                onChange={(event) =>
+                  updateReview("summary", event.target.value)
+                }
+                rows={4}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="review-content" className={fieldClass}>
+                Organized content <span className="text-red-600">*</span>
+              </label>
+              <Textarea
+                id="review-content"
+                value={review.content}
+                onChange={(event) =>
+                  updateReview("content", event.target.value)
+                }
+                rows={14}
+                aria-invalid={Boolean(reviewErrors.content)}
+                aria-describedby={
+                  reviewErrors.content ? "review-content-error" : undefined
+                }
+                className={reviewErrors.content ? errorInputClass : ""}
+              />
+              {reviewErrors.content && (
+                <p id="review-content-error" className="text-sm text-red-600">
+                  {reviewErrors.content}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="review-category" className={fieldClass}>
+                Category
+              </label>
+              <Input
+                id="review-category"
+                value={review.category}
+                onChange={(event) =>
+                  updateReview("category", event.target.value)
+                }
+                placeholder="No category suggested"
+              />
+            </div>
+
+            <EditableList
+              id="review-rules"
+              label="Important rules & instructions"
+              items={review.rules}
+              onChange={(items) => updateReview("rules", items)}
+              addLabel="Add rule"
+              emptyText="No explicit rules identified."
+              placeholder="Describe a rule or instruction"
+            />
+
+            <EditableList
+              id="review-ambiguities"
+              label="Ambiguous information"
+              items={review.ambiguities}
+              onChange={(items) => updateReview("ambiguities", items)}
+              addLabel="Add item"
+              emptyText="No ambiguous information identified."
+              placeholder="Describe what needs to be verified"
+              tone="warning"
+            />
+          </fieldset>
+
+          {saveError && (
+            <div
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+            >
+              {saveError}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200 pt-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleEditInput}
+                disabled={isSaving}
+                className={secondaryButtonClass}
+              >
+                <FileText size={16} />
+                Edit original input
+              </button>
+
+              {isEdited && (
+                <button
+                  type="button"
+                  onClick={handleRevert}
+                  disabled={isSaving}
+                  className={secondaryButtonClass}
+                >
+                  <RotateCcw size={16} />
+                  Revert edits
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={handleRegenerate}
+                disabled={isSaving}
+                className={secondaryButtonClass}
+              >
+                <RefreshCw size={16} />
+                Regenerate
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSaveDraft}
+                disabled={!onSaveDraft || isSaving}
+                title={
+                  onSaveDraft
+                    ? undefined
+                    : "Draft saving is not connected yet"
+                }
+                className={primaryButtonClass}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save size={16} />
+                    Save as Draft
+                  </>
+                )}
+              </button>
+            </div>
           </div>
+
+          {!onSaveDraft && (
+            <p className="text-right text-xs text-zinc-500">
+              Saving drafts will be enabled once the save flow is connected.
+            </p>
+          )}
         </section>
       )}
     </form>

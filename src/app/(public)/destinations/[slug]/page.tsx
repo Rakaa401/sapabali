@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import LanguageSwitcher from "@/components/public/guide/LanguageSwitcher";
 import { getPublicDestination } from "@/lib/public/destinations";
+import { buildHref, guidePath, resolveLanguage } from "@/lib/public/i18n";
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -18,8 +23,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function DestinationLandingPage({ params }: Props) {
-  const { slug } = await params;
+export default async function DestinationLandingPage({ params, searchParams }: Props) {
+  const [{ slug }, sp] = await Promise.all([params, searchParams]);
+  const lang = resolveLanguage(sp.lang);
   const destination = await getPublicDestination(slug);
   if (!destination) notFound();
 
@@ -46,6 +52,10 @@ export default async function DestinationLandingPage({ params }: Props) {
         )}
         <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/75 via-black/35 to-black/10" />
 
+        <div className="absolute right-6 top-6">
+          <LanguageSwitcher basePath={`/destinations/${encodeURIComponent(d.slug)}`} current={lang} onDark />
+        </div>
+
         <div className="mx-auto flex min-h-[22rem] max-w-5xl flex-col justify-end px-6 pb-14 pt-24 sm:min-h-[30rem] sm:pb-20">
           {d.category && (
             <span className="mb-3 w-fit rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur">
@@ -61,7 +71,7 @@ export default async function DestinationLandingPage({ params }: Props) {
         {/* Navigasi utama: Visitor Guide dan AI Cultural Guide */}
         <nav aria-label="Destination sections" className="relative z-10 -mt-8 grid gap-4 sm:grid-cols-2">
           <Link
-            href={`/destinations/${d.slug}/guide`}
+            href={buildHref(guidePath(d.slug), { lang })}
             className="group rounded-xl border border-stone-200 bg-white p-5 shadow-sm transition hover:border-emerald-600 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
           >
             <h2 className="text-lg font-semibold">Visitor guide</h2>
@@ -74,7 +84,7 @@ export default async function DestinationLandingPage({ params }: Props) {
           </Link>
 
           <Link
-            href={`/destinations/${d.slug}/chat`}
+            href={buildHref(`/destinations/${encodeURIComponent(d.slug)}/chat`, { lang })}
             className="group rounded-xl border border-emerald-700 bg-emerald-700 p-5 text-white shadow-sm transition hover:bg-emerald-800 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
           >
             <h2 className="text-lg font-semibold">Ask the AI Cultural Guide</h2>

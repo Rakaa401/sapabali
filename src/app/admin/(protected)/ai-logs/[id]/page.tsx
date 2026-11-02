@@ -22,7 +22,7 @@ export default async function AiLogDetailPage({
   const hasMetadata = Object.keys(log.metadata ?? {}).length > 0;
 
   return (
-    <main className="mx-auto max-w-3xl space-y-6 p-6">
+    <main className="mx-auto space-y-6 ">
       <Link href="/admin/ai-logs" className="text-sm text-emerald-700 hover:underline">Back to AI logs</Link>
 
       <div className="flex flex-wrap items-center gap-3">

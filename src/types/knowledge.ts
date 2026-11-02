@@ -1,4 +1,3 @@
-// Mengikuti schema Supabase (0001 + 0003_knowledge_items_ui_fields)
 
 export type KnowledgeStatus = "draft" | "published" | "unpublished";
 export type IndexingStatus = "pending" | "indexing" | "indexed" | "failed" | "stale";
@@ -45,3 +44,27 @@ export interface KnowledgeFormValues {
   source_url: string;
   source_description: string;
 }
+
+// Payload hasil review AI yang dikirim ke server action (03.5).
+// Tidak ada field status: server selalu menyimpan sebagai "draft".
+export interface KnowledgeDraftInput {
+  destination_id: string;
+  language: Language;
+  title: string;
+  summary: string;
+  content: string;
+  category: string;
+  important_rules: string[];
+  ambiguous_information: string[];
+  source_name: string;
+  source_url: string;
+  raw_content: string;
+}
+
+export type SaveDraftResult =
+  | { ok: true; id: string }
+  | {
+      ok: false;
+      error: string;
+      fieldErrors?: Partial<Record<string, string>>;
+    };

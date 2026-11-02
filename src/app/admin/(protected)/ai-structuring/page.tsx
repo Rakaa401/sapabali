@@ -1,9 +1,30 @@
-
 import AiStructuringForm from "@/components/ai-structuring/AiStructuringForm";
+import { createKnowledgeFromAi } from "@/lib/knowledge/actions/create-from-ai";
 import { getDestinations } from "@/lib/knowledge/queries";
+import { createClient } from "@/lib/supabase/server";
+
+// Kategori wajib dipilih dari daftar yang sudah ada (sama seperti form manual).
+async function getCategoryNames(): Promise<string[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("knowledge_categories")
+    .select("name")
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("[AI STRUCTURING] Failed to load categories", error);
+    return [];
+  }
+
+  return (data ?? []).map((category) => category.name as string);
+}
 
 export default async function AiStructuringPage() {
-  const destinations = await getDestinations();
+  const [destinations, categories] = await Promise.all([
+    getDestinations(),
+    getCategoryNames(),
+  ]);
 
   return (
     <main className="mx-auto space-y-6">
@@ -21,7 +42,11 @@ export default async function AiStructuringPage() {
         </p>
       </div>
 
-      <AiStructuringForm destinations={destinations} />
+      <AiStructuringForm
+        destinations={destinations}
+        categories={categories}
+        onSaveDraft={createKnowledgeFromAi}
+      />
     </main>
   );
 }

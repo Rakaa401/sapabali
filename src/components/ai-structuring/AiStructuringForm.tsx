@@ -18,7 +18,14 @@ import {
 import Input from "@/components/ui/input";
 import Textarea from "@/components/ui/textarea";
 import Select from "@/components/ui/select";
-import type { Destination, Language } from "@/types/knowledge";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type {
+  Destination,
+  KnowledgeDraftInput,
+  Language,
+  SaveDraftResult,
+} from "@/types/knowledge";
 
 const MAX_CONTENT_LENGTH = 20000;
 const MIN_CONTENT_LENGTH = 20;
@@ -86,40 +93,32 @@ type ReviewFields = {
   ambiguities: string[];
 };
 
-// Payload yang akan diserahkan ke proses penyimpanan di 03.5.
-// status dikunci ke "draft": komponen ini tidak punya jalur untuk publish.
-export type KnowledgeDraftInput = {
-  status: "draft";
-  destination_id: string;
-  language: Language;
-  title: string;
-  summary: string;
-  content: string;
-  category: string;
-  important_rules: string[];
-  ambiguous_information: string[];
-  source_name: string;
-  source_url: string;
-  raw_content: string;
-};
-
 interface AiStructuringFormProps {
   destinations: Destination[];
-  /**
-   * Diisi di 03.5 untuk menyimpan draft. Selama belum diisi,
-   * tombol "Save as Draft" nonaktif (tidak ada endpoint palsu).
-   * Catatan: kalau halaman induk adalah Server Component, fungsi ini harus
-   * berupa Server Action atau di-wire lewat client wrapper.
-   */
-  onSaveDraft?: (draft: KnowledgeDraftInput) => Promise<void>;
+  // Nama kategori yang sudah ada (knowledge_categories). Kategori wajib dipilih dari daftar ini.
+  categories: string[];
+  // Server Action penyimpan draft (03.5). Server selalu menyimpan dengan status "draft".
+  onSaveDraft: (draft: KnowledgeDraftInput) => Promise<SaveDraftResult>;
 }
 
-function toReviewFields(result: StructuringResult): ReviewFields {
+// Cocokkan saran kategori AI dengan kategori yang ada (tanpa peduli huruf besar/kecil).
+// Tidak cocok -> "" supaya reviewer memilih sendiri.
+function matchCategory(suggested: string, categories: string[]) {
+  const wanted = suggested.trim().toLowerCase();
+  if (!wanted) return "";
+
+  return categories.find((name) => name.trim().toLowerCase() === wanted) ?? "";
+}
+
+function toReviewFields(
+  result: StructuringResult,
+  categories: string[],
+): ReviewFields {
   return {
     title: result.suggested_title ?? "",
     summary: result.summary ?? "",
     content: result.organized_content ?? "",
-    category: result.suggested_category ?? "",
+    category: matchCategory(result.suggested_category ?? "", categories),
     rules: [...(result.important_rules ?? [])],
     ambiguities: [...(result.ambiguous_information ?? [])],
   };
@@ -222,8 +221,11 @@ function EditableList({
 
 export default function AiStructuringForm({
   destinations,
+  categories,
   onSaveDraft,
 }: AiStructuringFormProps) {
+  const router = useRouter();
+
   const [values, setValues] = useState<FormValues>({
     content: "",
     source_name: "",
@@ -247,6 +249,7 @@ export default function AiStructuringForm({
   const [baseline, setBaseline] = useState<ReviewFields | null>(null);
   const [review, setReview] = useState<ReviewFields | null>(null);
   const [detectedLanguage, setDetectedLanguage] = useState<Language>("id");
+  const [aiSuggestedCategory, setAiSuggestedCategory] = useState("");
   const [resultKey, setResultKey] = useState(0);
   const [reviewErrors, setReviewErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -373,7 +376,8 @@ export default function AiStructuringForm({
       await new Promise((resolve) => setTimeout(resolve, 450));
 
       const data = payload.data as StructuringResult;
-      const fields = toReviewFields(data);
+      const fields = toReviewFields(data, categories);
+      setAiSuggestedCategory((data.suggested_category ?? "").trim());
 
       setSource(input);
       setBaseline(fields);
@@ -504,7 +508,7 @@ export default function AiStructuringForm({
   }
 
   async function handleSaveDraft() {
-    if (!review || !source || !onSaveDraft || isSaving || isGenerating) return;
+    if (!review || !source || isSaving || isGenerating) return;
 
     const nextErrors: Record<string, string> = {};
 
@@ -516,19 +520,22 @@ export default function AiStructuringForm({
       nextErrors.content = "Content is required.";
     }
 
+    if (!review.category) {
+      nextErrors.category = "Choose a category.";
+    }
+
     if (Object.keys(nextErrors).length > 0) {
       setReviewErrors(nextErrors);
       return;
     }
 
     const draft: KnowledgeDraftInput = {
-      status: "draft",
       destination_id: source.destination_id,
       language: detectedLanguage,
       title: review.title.trim(),
       summary: review.summary.trim(),
       content: review.content.trim(),
-      category: review.category.trim(),
+      category: review.category,
       important_rules: cleanList(review.rules),
       ambiguous_information: cleanList(review.ambiguities),
       source_name: source.source_name.trim(),
@@ -541,18 +548,43 @@ export default function AiStructuringForm({
     setMessage("");
 
     try {
-      await onSaveDraft(draft);
-      setSavedJson(reviewJson);
-      setMessage("Draft saved. It has not been published.");
+      const result = await onSaveDraft(draft);
+
+      if (result.ok) {
+        setSavedJson(reviewJson);
+        setMessage("Draft saved. Redirecting to the knowledge detail...");
+        router.push(`/admin/knowledge/${result.id}`);
+        // isSaving sengaja dibiarkan true sampai halaman berpindah (cegah klik ganda)
+        return;
+      }
+
+      const fieldErrors = result.fieldErrors ?? {};
+      const reviewFieldErrors: Record<string, string> = {};
+
+      if (fieldErrors.title) reviewFieldErrors.title = fieldErrors.title;
+      if (fieldErrors.content) reviewFieldErrors.content = fieldErrors.content;
+      if (fieldErrors.category) reviewFieldErrors.category = fieldErrors.category;
+
+      setReviewErrors(reviewFieldErrors);
+
+      // Field yang terkunci (destination, source URL, language) tidak bisa
+      // diperbaiki di layar ini, jadi pesannya ditampilkan di error simpan.
+      const lockedFieldErrors = [
+        fieldErrors.destination_id,
+        fieldErrors.source_url,
+        fieldErrors.language,
+      ].filter(Boolean);
+
+      setSaveError([result.error, ...lockedFieldErrors].join(" "));
     } catch (error) {
       setSaveError(
         error instanceof Error
           ? error.message
           : "Failed to save the draft. Please try again.",
       );
-    } finally {
-      setIsSaving(false);
     }
+
+    setIsSaving(false);
   }
 
   const percent = Math.round(progress);
@@ -961,16 +993,68 @@ export default function AiStructuringForm({
 
             <div className="space-y-1.5">
               <label htmlFor="review-category" className={fieldClass}>
-                Category
+                Category <span className="text-red-600">*</span>
               </label>
-              <Input
-                id="review-category"
-                value={review.category}
-                onChange={(event) =>
-                  updateReview("category", event.target.value)
-                }
-                placeholder="No category suggested"
-              />
+
+              <span className="relative block">
+                <Select
+                  id="review-category"
+                  value={review.category}
+                  onChange={(event) =>
+                    updateReview("category", event.target.value)
+                  }
+                  aria-invalid={Boolean(reviewErrors.category)}
+                  aria-describedby={
+                    reviewErrors.category ? "review-category-error" : undefined
+                  }
+                  disabled={categories.length === 0}
+                  className={`${selectClass} cursor-pointer appearance-none pr-9`}
+                >
+                  <option value="">Select category</option>
+                  {categories.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </Select>
+
+                <ChevronDown
+                  size={16}
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400"
+                />
+              </span>
+
+              {reviewErrors.category && (
+                <p id="review-category-error" className="text-sm text-red-600">
+                  {reviewErrors.category}
+                </p>
+              )}
+
+              {(categories.length === 0 ||
+                (!review.category && aiSuggestedCategory)) && (
+                <p className="text-sm text-amber-700">
+                  {categories.length === 0
+                    ? "No categories yet."
+                    : `AI suggested "${aiSuggestedCategory}", which is not in your category list.`}{" "}
+                  <Link
+                    href="/admin/knowledge/categories"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium underline"
+                  >
+                    Manage categories
+                  </Link>{" "}
+                  in a new tab, then{" "}
+                  <button
+                    type="button"
+                    onClick={() => router.refresh()}
+                    className="font-medium underline"
+                  >
+                    refresh the list
+                  </button>
+                  .
+                </p>
+              )}
             </div>
 
             <EditableList
@@ -1043,12 +1127,7 @@ export default function AiStructuringForm({
               <button
                 type="button"
                 onClick={handleSaveDraft}
-                disabled={!onSaveDraft || isSaving}
-                title={
-                  onSaveDraft
-                    ? undefined
-                    : "Draft saving is not connected yet"
-                }
+                disabled={isSaving}
                 className={primaryButtonClass}
               >
                 {isSaving ? (
@@ -1066,11 +1145,10 @@ export default function AiStructuringForm({
             </div>
           </div>
 
-          {!onSaveDraft && (
-            <p className="text-right text-xs text-zinc-500">
-              Saving drafts will be enabled once the save flow is connected.
-            </p>
-          )}
+          <p className="text-right text-xs text-zinc-500">
+            Saved drafts are not published and are not used for answers until
+            you publish them.
+          </p>
         </section>
       )}
     </form>

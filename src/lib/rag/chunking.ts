@@ -1,12 +1,11 @@
 
+import { preprocessKnowledgeContent } from "./preprocessing";
+
 const CHUNK_SIZE = 1200;
 const CHUNK_OVERLAP = 200;
 
 export function splitIntoChunks(content: string): string[] {
-  const text = content.replace(/\s+/g, " ").trim();
-
-  if (!text) return [];
-
+  const text = preprocessKnowledgeContent(content);
   const chunks: string[] = [];
   let start = 0;
 
@@ -14,9 +13,16 @@ export function splitIntoChunks(content: string): string[] {
     let end = Math.min(start + CHUNK_SIZE, text.length);
 
     if (end < text.length) {
-      const boundary = text.lastIndexOf(" ", end);
-      if (boundary > start + CHUNK_SIZE * 0.7) {
-        end = boundary;
+      const paragraphBoundary = text.lastIndexOf("\n\n", end);
+      const lineBoundary = text.lastIndexOf("\n", end);
+      const wordBoundary = text.lastIndexOf(" ", end);
+
+      if (paragraphBoundary > start + CHUNK_SIZE * 0.7) {
+        end = paragraphBoundary;
+      } else if (lineBoundary > start + CHUNK_SIZE * 0.7) {
+        end = lineBoundary;
+      } else if (wordBoundary > start + CHUNK_SIZE * 0.7) {
+        end = wordBoundary;
       }
     }
 

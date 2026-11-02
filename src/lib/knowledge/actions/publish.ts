@@ -112,3 +112,29 @@ export async function publishKnowledge(id: string): Promise<ActionResult> {
 
   return { ok: true, id };
 }
+
+
+export async function reindexKnowledge(id: string): Promise<ActionResult> {
+  const admin = await getAdminClient();
+
+  if ("error" in admin) {
+    return { ok: false, error: admin.error };
+  }
+
+  try {
+    await indexKnowledge(id);
+
+    revalidatePath("/admin/knowledge");
+    revalidatePath(`/admin/knowledge/${id}`);
+
+    return { ok: true, id };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? `Re-indexing failed: ${error.message}`
+          : "Knowledge re-indexing failed.",
+    };
+  }
+}

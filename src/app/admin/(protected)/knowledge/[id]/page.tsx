@@ -60,6 +60,7 @@ export default async function KnowledgeDetailPage({
             Edit
           </Link>
    <KnowledgePublicationActions
+   indexingStatus={item.indexing_status}
   id={item.id}
   status={item.status}
   primaryClassName={primaryBtn}

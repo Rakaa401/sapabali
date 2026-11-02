@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import DestinationForm from "@/components/admin/destinations/DestinationForm";
+import DestinationQrCode from "@/components/admin/destinations/DestinationQrCode";
 import { getDestinationById } from "@/lib/destinations/queries";
 
 export default async function EditDestinationPage({
@@ -26,6 +27,12 @@ export default async function EditDestinationPage({
       </div>
 
       <DestinationForm mode="edit" initialData={destination} />
+
+      <DestinationQrCode
+        slug={destination.slug}
+        name={destination.name}
+        status={destination.status}
+      />
     </main>
   );
 }

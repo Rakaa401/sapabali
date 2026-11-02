@@ -30,7 +30,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   if (!destination) return { title: "Destination not found" };
 
   const t = getDictionary(resolveLanguage(sp.lang));
-  return { title: `${t.guideTitle} | ${destination.name} | SapaBali` };
+  return { title: `${t.guideTitle} | ${destination.name}` };
 }
 
 export default async function VisitorGuidePage({ params, searchParams }: Props) {
@@ -79,7 +79,7 @@ export default async function VisitorGuidePage({ params, searchParams }: Props) 
   const pageHref = (p: number) => buildHref(base, { lang, category, page: p });
 
   return (
-    <main className="bg-stone-50 pb-16 text-stone-900">
+    <main className="min-h-screen bg-stone-50 pb-16 text-stone-900">
       <div className="mx-auto max-w-5xl px-6 pt-8 sm:pt-12">
         <div className="flex items-start justify-between gap-4">
           <Link

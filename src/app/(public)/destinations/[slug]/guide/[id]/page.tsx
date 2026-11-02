@@ -33,8 +33,8 @@ function safeUrl(value: string | null): string | null {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, id } = await params;
   const item = await getItem(slug, id);
-  if (!item) return { title: "Information not available | SapaBali" };
-  return { title: `${item.title} | SapaBali` };
+  if (!item) return { title: "Information not available" };
+  return { title: item.title };
 }
 
 export default async function KnowledgeDetailPage({ params, searchParams }: Props) {
@@ -53,7 +53,7 @@ export default async function KnowledgeDetailPage({ params, searchParams }: Prop
   const source = safeUrl(item.source_url);
 
   return (
-    <main className="bg-stone-50 pb-16 text-stone-900">
+    <main className="min-h-screen bg-stone-50 pb-16 text-stone-900">
       <div className="mx-auto max-w-3xl px-6 pt-8 sm:pt-12">
         <div className="flex items-start justify-between gap-4">
           <Link href={backHref} className="text-sm font-medium text-emerald-700 hover:underline">

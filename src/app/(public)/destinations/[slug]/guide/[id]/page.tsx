@@ -2,6 +2,7 @@ import { cache } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft, CalendarDays, ExternalLink, FileText, Info } from "lucide-react";
 import LanguageSwitcher from "@/components/public/guide/LanguageSwitcher";
 import { getPublicDestination } from "@/lib/public/destinations";
 import {
@@ -51,90 +52,111 @@ export default async function KnowledgeDetailPage({ params, searchParams }: Prop
 
   const backHref = buildHref(guidePath(slug), { lang, category, page });
   const source = safeUrl(item.source_url);
+  const hasSource = Boolean(item.source_name || source);
 
   return (
     <main className="min-h-screen bg-stone-50 pb-16 text-stone-900">
-      <div className="mx-auto max-w-3xl px-6 pt-8 sm:pt-12">
-        <div className="flex items-start justify-between gap-4">
-          <Link href={backHref} className="text-sm font-medium text-emerald-700 hover:underline">
-            &larr; {t.backToGuide}
+      {/* Pita atas: kembali dan bahasa */}
+      <div className="border-b border-stone-200 bg-white">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-6 py-3">
+          <Link
+            href={backHref}
+            className="-ml-2 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+          >
+            <ArrowLeft size={16} aria-hidden />
+            {t.backToGuide}
           </Link>
-          <LanguageSwitcher
-            basePath={itemPath(slug, id)}
-            current={lang}
-            params={{ category, page }}
-          />
+          <LanguageSwitcher basePath={itemPath(slug, id)} current={lang} params={{ category, page }} />
         </div>
+      </div>
 
-        <article className="mt-6">
-          <p className="text-sm font-medium text-stone-500">{destination.name}</p>
+      <div className="mx-auto max-w-3xl px-6 pt-8 sm:pt-10">
+        <article className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-10">
+          <header>
+            <p className="text-sm font-medium text-emerald-700">{destination.name}</p>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-            {item.category && (
-              <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-medium text-emerald-800">
-                {categoryLabel(item.category, lang)}
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              {item.category && (
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-medium text-emerald-800">
+                  {categoryLabel(item.category, lang)}
+                </span>
+              )}
+              <span className="rounded-full bg-stone-100 px-2.5 py-1 font-medium text-stone-600">
+                {t.writtenIn(languageName(item.language))}
               </span>
-            )}
-            <span className="rounded-full bg-stone-100 px-2.5 py-1 font-medium text-stone-600">
-              {t.writtenIn(languageName(item.language))}
-            </span>
-          </div>
+            </div>
 
-          <h1 className="mt-3 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl" lang={item.language}>
-            {item.title}
-          </h1>
+            <h1
+              className="mt-4 text-balance text-3xl font-bold leading-tight tracking-tight sm:text-4xl"
+              lang={item.language}
+            >
+              {item.title}
+            </h1>
+          </header>
 
           {/* Konten ini tidak ada versi terjemahannya: katakan apa adanya */}
           {item.language !== lang && (
-            <p role="note" className="mt-5 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              {t.notTranslated(languageName(item.language), languageName(lang))}
-            </p>
+            <div
+              role="note"
+              className="mt-6 flex gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900"
+            >
+              <Info size={18} aria-hidden className="mt-0.5 shrink-0" />
+              <p>{t.notTranslated(languageName(item.language), languageName(lang))}</p>
+            </div>
           )}
 
-          <div className="mt-6 whitespace-pre-line text-base leading-relaxed text-stone-800" lang={item.language}>
+          <div
+            className="mt-8 whitespace-pre-line text-base leading-8 text-stone-800 sm:text-lg sm:leading-9"
+            lang={item.language}
+          >
             {item.content}
           </div>
 
-          <dl className="mt-10 space-y-3 border-t border-stone-200 pt-6 text-sm">
-            {item.source_name && (
-              <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-3">
-                <dt className="w-24 shrink-0 text-stone-500">{t.source}</dt>
-                <dd className="font-medium">
-                  {item.source_name}
-                  {source && (
-                    <>
-                      {" "}
+          {/* Sumber dan tanggal */}
+          <dl className="mt-10 grid gap-4 rounded-xl bg-stone-50 p-4 text-sm sm:grid-cols-2 sm:p-5">
+            {hasSource && (
+              <div className="flex gap-3">
+                <FileText size={18} aria-hidden className="mt-0.5 shrink-0 text-stone-400" />
+                <div className="min-w-0">
+                  <dt className="text-stone-500">{t.source}</dt>
+                  <dd className="mt-0.5 break-words font-medium text-stone-900">
+                    {item.source_name}
+                    {source && (
                       <a
                         href={source}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="font-medium text-emerald-700 hover:underline"
+                        className={`inline-flex items-center gap-1 font-medium text-emerald-700 hover:underline ${
+                          item.source_name ? "ml-2" : ""
+                        }`}
                       >
-                        ({t.sourceLink})
+                        {t.sourceLink}
+                        <ExternalLink size={14} aria-hidden />
                       </a>
-                    </>
-                  )}
-                </dd>
+                    )}
+                  </dd>
+                </div>
               </div>
             )}
-            {!item.source_name && source && (
-              <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-3">
-                <dt className="w-24 shrink-0 text-stone-500">{t.source}</dt>
-                <dd>
-                  <a href={source} target="_blank" rel="noopener noreferrer" className="font-medium text-emerald-700 hover:underline">
-                    {t.sourceLink}
-                  </a>
+            <div className="flex gap-3">
+              <CalendarDays size={18} aria-hidden className="mt-0.5 shrink-0 text-stone-400" />
+              <div>
+                <dt className="text-stone-500">{t.updated}</dt>
+                <dd className="mt-0.5 font-medium text-stone-900">
+                  <time dateTime={item.updated_at}>{formatDate(item.updated_at, lang)}</time>
                 </dd>
               </div>
-            )}
-            <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-3">
-              <dt className="w-24 shrink-0 text-stone-500">{t.updated}</dt>
-              <dd className="font-medium">
-                <time dateTime={item.updated_at}>{formatDate(item.updated_at, lang)}</time>
-              </dd>
             </div>
           </dl>
         </article>
+
+        <Link
+          href={backHref}
+          className="mt-6 flex min-h-11 items-center justify-center gap-2 rounded-lg border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 transition hover:border-emerald-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 sm:w-fit"
+        >
+          <ArrowLeft size={16} aria-hidden />
+          {t.backToGuide}
+        </Link>
       </div>
     </main>
   );

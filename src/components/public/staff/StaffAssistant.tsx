@@ -4,13 +4,22 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { askStaffAssistant } from "@/lib/staff-assistant/client";
 import { STAFF_TEXT as T } from "@/lib/staff-assistant/text";
-import { MAX_SITUATION_LENGTH, type StaffAnswer } from "@/lib/staff-assistant/types";
+import { MAX_SITUATION_LENGTH, type StaffAnswer, type StaffLength } from "@/lib/staff-assistant/types";
 
 const isHttp = (url: string) => /^https?:\/\//i.test(url);
+
+const toolbarButton =
+  "rounded-md border border-stone-300 px-3 py-1 text-xs font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:cursor-not-allowed disabled:opacity-50";
+
+interface LastRequest {
+  situation: string; // situasi yang terakhir dikirim, dipakai untuk "Buat ulang" dan "Lebih singkat"
+  length: StaffLength;
+}
 
 export default function StaffAssistant({ destinationId }: { destinationId: string }) {
   const [situation, setSituation] = useState("");
   const [result, setResult] = useState<StaffAnswer | null>(null);
+  const [lastRequest, setLastRequest] = useState<LastRequest | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
@@ -24,23 +33,52 @@ export default function StaffAssistant({ destinationId }: { destinationId: strin
     };
   }, []);
 
-  async function generate() {
-    const text = situation.trim();
-    if (!text || loading) return; // cegah kirim ganda
+  // Satu pintu untuk semua permintaan: buat baru, buat ulang, dan ganti panjang
+  async function run(opts: { situation: string; length: StaffLength; regenerate: boolean; keepResult: boolean }) {
+    if (loading) return; // cegah kirim ganda
 
     setError(null);
-    setResult(null);
+    // Buat ulang / ganti panjang: hasil lama tetap tersimpan, jadi kalau gagal tidak hilang
+    if (!opts.keepResult) setResult(null);
     setCopyState("idle");
     setLoading(true);
 
     try {
-      setResult(await askStaffAssistant({ situation: text, destinationId }));
+      const answer = await askStaffAssistant({
+        situation: opts.situation,
+        destinationId,
+        length: opts.length,
+        regenerate: opts.regenerate,
+      });
+      setResult(answer);
+      setLastRequest({ situation: opts.situation, length: opts.length });
     } catch (e) {
-      // input tidak dihapus supaya petugas tidak perlu mengetik ulang
+      // input dan hasil sebelumnya tidak dihapus
       setError(e instanceof Error && e.message ? e.message : T.errorGeneric);
     } finally {
       setLoading(false);
     }
+  }
+
+  function generate() {
+    const text = situation.trim();
+    if (!text) return;
+    void run({ situation: text, length: "normal", regenerate: false, keepResult: false });
+  }
+
+  function regenerate() {
+    if (!lastRequest) return;
+    void run({ ...lastRequest, regenerate: true, keepResult: true });
+  }
+
+  function toggleLength() {
+    if (!lastRequest) return;
+    void run({
+      situation: lastRequest.situation,
+      length: lastRequest.length === "short" ? "normal" : "short",
+      regenerate: false,
+      keepResult: true,
+    });
   }
 
   async function copy() {
@@ -58,12 +96,13 @@ export default function StaffAssistant({ destinationId }: { destinationId: strin
   function clearAll() {
     setSituation("");
     setResult(null);
+    setLastRequest(null);
     setError(null);
     setCopyState("idle");
     textareaRef.current?.focus();
   }
 
-  function useExample(text: string) {
+  function fillExample(text: string) {
     setSituation(text);
     setError(null);
     textareaRef.current?.focus();
@@ -72,11 +111,12 @@ export default function StaffAssistant({ destinationId }: { destinationId: strin
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
-      void generate();
+      generate();
     }
   }
 
   const canGenerate = situation.trim().length > 0 && !loading;
+  const isShort = result?.length === "short";
 
   return (
     <div className="space-y-6">
@@ -110,7 +150,7 @@ export default function StaffAssistant({ destinationId }: { destinationId: strin
               <button
                 key={ex}
                 type="button"
-                onClick={() => useExample(ex)}
+                onClick={() => fillExample(ex)}
                 className="rounded-full border border-stone-300 bg-white px-3 py-1.5 text-left text-xs text-stone-700 transition hover:border-emerald-600 hover:text-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
               >
                 {ex}
@@ -122,7 +162,7 @@ export default function StaffAssistant({ destinationId }: { destinationId: strin
         <div className="mt-5 flex flex-col gap-3 sm:flex-row">
           <button
             type="button"
-            onClick={() => void generate()}
+            onClick={generate}
             disabled={!canGenerate}
             className="rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -147,16 +187,26 @@ export default function StaffAssistant({ destinationId }: { destinationId: strin
 
       {/* Hasil */}
       <section aria-busy={loading} className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-medium text-stone-900">{T.resultTitle}</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-medium text-stone-900">{T.resultTitle}</h2>
+            {result && isShort && !loading && (
+              <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] text-stone-600">{T.shortBadge}</span>
+            )}
+          </div>
+
           {result && (
-            <button
-              type="button"
-              onClick={() => void copy()}
-              className="rounded-md border border-stone-300 px-3 py-1 text-xs font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
-            >
-              {copyState === "copied" ? T.copied : T.copy}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => void copy()} disabled={loading} className={toolbarButton}>
+                {copyState === "copied" ? T.copied : T.copy}
+              </button>
+              <button type="button" onClick={regenerate} disabled={loading || !lastRequest} className={toolbarButton}>
+                {T.regenerate}
+              </button>
+              <button type="button" onClick={toggleLength} disabled={loading || !lastRequest} className={toolbarButton}>
+                {isShort ? T.makeFull : T.makeShorter}
+              </button>
+            </div>
           )}
         </div>
 

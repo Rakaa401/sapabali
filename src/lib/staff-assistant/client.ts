@@ -1,4 +1,4 @@
-import type { StaffAnswer, StaffRequest, StaffSource } from "./types";
+import type { StaffAnswer, StaffLength, StaffRequest, StaffSource } from "./types";
 
 export class StaffAssistantError extends Error {
   retryAfterSeconds?: number;
@@ -8,11 +8,27 @@ export class StaffAssistantError extends Error {
   }
 }
 
-// Selama API 07.2 belum ada, UI memakai jawaban contoh.
-// Setelah API jadi, isi NEXT_PUBLIC_STAFF_MOCK=false di .env lalu restart npm run dev.
+// Selama API belum dipakai, UI memakai jawaban contoh.
+// Isi NEXT_PUBLIC_STAFF_MOCK=false di .env lalu restart npm run dev untuk memakai API sungguhan.
 const USE_MOCK = process.env.NEXT_PUBLIC_STAFF_MOCK !== "false";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const MOCK_TEXT: Record<StaffLength, string[]> = {
+  normal: [
+    "(Sample output. The AI backend is not connected yet, so this is not real destination information.)\n\n" +
+      "Good afternoon, and thank you for visiting. May I kindly ask for your cooperation? " +
+      "In this area, visitors are asked to dress respectfully. We can lend you a sarong at the entrance. " +
+      "Thank you very much for understanding.",
+    "(Sample output, not real destination information.)\n\n" +
+      "Hello, welcome. To help everyone enjoy this place respectfully, we kindly ask visitors to cover their shoulders and knees. " +
+      "A sarong is available at the entrance if you need one. Thank you for your understanding.",
+  ],
+  short: [
+    "(Sample, short.) Excuse me, could you please wear a sarong here? We can lend you one at the entrance. Thank you!",
+    "(Sample, short.) Hello! Visitors are kindly asked to cover shoulders and knees here. A sarong is available at the entrance.",
+  ],
+};
 
 async function mockAsk(req: StaffRequest): Promise<StaffAnswer> {
   await sleep(1500);
@@ -22,13 +38,14 @@ async function mockAsk(req: StaffRequest): Promise<StaffAnswer> {
     throw new StaffAssistantError("Simulasi error: layanan AI tidak bisa dihubungi.");
   }
 
+  const length: StaffLength = req.length === "short" ? "short" : "normal";
+  const options = MOCK_TEXT[length];
+  const text = req.regenerate ? options[Math.floor(Math.random() * options.length)] : options[0];
+
   return {
-    explanation:
-      "(Sample output. The AI backend is not connected yet, so this is not real destination information.)\n\n" +
-      "Good afternoon, and thank you for visiting. May I kindly ask for your cooperation? " +
-      "In this area, visitors are asked to dress respectfully. We can lend you a sarong at the entrance. " +
-      "Thank you very much for understanding.",
+    explanation: text,
     fallback: false,
+    length,
     sources: [
       { id: "mock-1", title: "Dress Code (sample)", sourceName: "Sample source", sourceUrl: "https://example.com/dress-code", detailPath: null },
     ],
@@ -72,9 +89,15 @@ async function realAsk(req: StaffRequest): Promise<StaffAnswer> {
     typeof data?.explanation === "string" ? data.explanation : typeof data?.answer === "string" ? data.answer : null;
 
   if (res.ok && data?.ok === true && text) {
-    return { explanation: text, sources: normalizeSources(data.sources), fallback: data.fallback === true };
+    return {
+      explanation: text,
+      sources: normalizeSources(data.sources),
+      fallback: data.fallback === true,
+      length: data.length === "short" ? "short" : "normal",
+    };
   }
 
+  // Error dari server: { ok: false, error: { code, message }, retryAfterSeconds? }
   const message =
     typeof data?.error?.message === "string" ? data.error.message : "Penjelasan belum berhasil dibuat. Coba lagi.";
   const retry = typeof data?.retryAfterSeconds === "number" ? data.retryAfterSeconds : undefined;

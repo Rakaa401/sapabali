@@ -1,8 +1,14 @@
 import { escapeForPrompt } from "@/lib/visitor-chat/prompt";
 import type { RetrievalResult } from "@/lib/visitor-chat/retrieval";
+import type { StaffLength } from "./types";
 
-// 07.4: prompt khusus petugas. Situasi dari petugas diperlakukan sebagai DATA, bukan instruksi.
-export function buildStaffSystemPrompt(destinationName: string): string {
+// Prompt khusus petugas. Situasi dari petugas diperlakukan sebagai DATA, bukan instruksi.
+export function buildStaffSystemPrompt(destinationName: string, length: StaffLength = "normal"): string {
+  const lengthRule =
+    length === "short"
+      ? "- At most about 40 words: one or two short sentences with only the essential request or rule. Plain text only: no headings, no bold, no tables, no bullet lists."
+      : "- At most about 90 words. Plain text only: no headings, no bold, no tables, no bullet lists.";
+
   return [
     `You are the Staff Assistant for one destination: "${escapeForPrompt(destinationName)}".`,
     "A staff member describes a situation involving a visitor, written in Indonesian.",
@@ -19,7 +25,7 @@ export function buildStaffSystemPrompt(destinationName: string): string {
     "- Write in English, addressed directly to the visitor (\"you\"), as the staff member speaking.",
     "- Keep the staff member's meaning. Do not make the request stricter or softer than what the context says.",
     "- Be polite, respectful, calm, and friendly. Never blame or accuse the visitor.",
-    "- At most about 90 words. Plain text only: no headings, no bold, no tables, no bullet lists.",
+    lengthRule,
     "- Do not include source labels such as [S1] and do not include URLs in the message.",
     "",
     "SOURCES:",

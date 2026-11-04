@@ -5,6 +5,7 @@ import type { GenerationUsage } from "@/lib/visitor-chat/generate";
 import { contextText } from "@/lib/visitor-chat/prompt";
 import type { RetrievalResult } from "@/lib/visitor-chat/retrieval";
 import { buildStaffSystemPrompt, buildStaffUserPrompt } from "./prompt";
+import type { StaffLength } from "./types";
 
 // Pola panggilan Gemini sama dengan generate.ts milik chat pengunjung
 const PRIMARY_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
@@ -16,6 +17,10 @@ const MODELS = Array.from(new Set([PRIMARY_MODEL, ...FALLBACK_MODELS]));
 
 const REQUEST_TIMEOUT_MS = 15_000; // per model
 const TOTAL_DEADLINE_MS = 35_000; // total semua percobaan
+
+// "Buat ulang" memakai suhu lebih tinggi supaya kalimatnya berbeda. Aturan sumber tetap sama.
+const TEMPERATURE_NORMAL = 0.2;
+const TEMPERATURE_REGENERATE = 0.6;
 
 const ANSWER_SCHEMA = {
   type: "object",
@@ -51,8 +56,13 @@ export async function generateStaffExplanation(input: {
   destinationName: string;
   situation: string;
   retrieval: RetrievalResult;
+  length?: StaffLength;
+  regenerate?: boolean;
 }): Promise<StaffGenerationResult> {
   const { destinationName, situation, retrieval } = input;
+  const length: StaffLength = input.length ?? "normal";
+  const regenerate = input.regenerate === true;
+
   const allowedLabels = new Set(retrieval.chunks.map((chunk) => chunk.label));
   const context = contextText(retrieval.chunks);
   const emptyUsage: GenerationUsage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
@@ -62,7 +72,7 @@ export async function generateStaffExplanation(input: {
     const first = retrieval.chunks[0];
     return {
       kind: "answer",
-      explanation: `(Mock) ${first.content.slice(0, 240)}`,
+      explanation: `(Mock) ${first.content.slice(0, length === "short" ? 100 : 240)}`,
       labels: [first.label],
       model: "mock",
       usage: emptyUsage,
@@ -70,7 +80,7 @@ export async function generateStaffExplanation(input: {
   }
 
   const ai = getGeminiClient();
-  const systemPrompt = buildStaffSystemPrompt(destinationName);
+  const systemPrompt = buildStaffSystemPrompt(destinationName, length);
   const userPrompt = buildStaffUserPrompt(destinationName, situation, retrieval.chunks, retrieval.items);
 
   const startedAt = Date.now();
@@ -94,7 +104,7 @@ export async function generateStaffExplanation(input: {
             schema: ANSWER_SCHEMA,
           },
           generation_config: {
-            temperature: 0.2,
+            temperature: regenerate ? TEMPERATURE_REGENERATE : TEMPERATURE_NORMAL,
             max_output_tokens: 1024,
             ...(supportsThinkingLevel ? { thinking_level: "low" } : {}),
           },

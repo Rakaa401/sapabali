@@ -8,15 +8,18 @@ import { GenerationUnavailableError } from "@/lib/visitor-chat/generate";
 import { RateLimitUnavailableError, checkRateLimit } from "@/lib/visitor-chat/rate-limit";
 
 // POST /api/staff/assistant
-// Body:    { destinationId, situation, language?: "en" }
-// Sukses:  { ok: true, explanation, sources, fallback }
+// Body:    { destinationId, situation, language?: "en", length?: "normal" | "short", regenerate?: boolean }
+// Sukses:  { ok: true, explanation, sources, fallback, length }
 // Gagal:   { ok: false, error: { code, message }, retryAfterSeconds? }
 
 const MAX_BODY_CHARS = 4000;
 
 // Dipakai kalau data destinasi tidak cukup. Tidak menyebut aturan apa pun.
-const FALLBACK_EXPLANATION =
-  "Thank you for your patience. I want to give you the correct information, so I will check with our coordinator and come back to you shortly.";
+const FALLBACK_EXPLANATION = {
+  normal:
+    "Thank you for your patience. I want to give you the correct information, so I will check with our coordinator and come back to you shortly.",
+  short: "Thank you for your patience. Let me check with our coordinator and get back to you.",
+} as const;
 
 type ErrorCode =
   | "INVALID_REQUEST"
@@ -65,7 +68,7 @@ export async function POST(request: Request) {
 
   const parsed = parseStaffRequest(json);
   if (!parsed.ok) return fail("INVALID_REQUEST", 400, { message: parsed.message });
-  const { destinationId, situation } = parsed.data;
+  const { destinationId, situation, length, regenerate } = parsed.data;
 
   const startedAt = Date.now();
 
@@ -104,6 +107,8 @@ export async function POST(request: Request) {
     const baseMetadata = {
       destination_id: destination.id,
       destination_name: destination.name,
+      length,
+      regenerate,
     };
 
     const respondFallback = async (
@@ -111,19 +116,20 @@ export async function POST(request: Request) {
       model?: string,
       usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number },
     ) => {
+      const explanation = FALLBACK_EXPLANATION[length];
       await logStaffRequest({
         query: situation,
-        response: FALLBACK_EXPLANATION,
+        response: explanation,
         model: model ?? null,
         usage,
         startedAt,
         status: "success",
         metadata: { ...baseMetadata, fallback: true, reason },
       });
-      return respond({ ok: true, explanation: FALLBACK_EXPLANATION, sources: [], fallback: true });
+      return respond({ ok: true, explanation, sources: [], fallback: true, length });
     };
 
-    // 4. Cari konteks (07.3)
+    // 4. Cari konteks
     let retrieval;
     try {
       retrieval = await retrieveStaffContext(supabase, destination.id, situation);
@@ -142,13 +148,15 @@ export async function POST(request: Request) {
     // Data kosong atau kurang relevan: jangan panggil AI, jangan mengarang aturan
     if (!retrieval.sufficient) return respondFallback(retrieval.reason);
 
-    // 5. Susun penjelasan bahasa Inggris (07.4)
+    // 5. Susun penjelasan bahasa Inggris
     let generation;
     try {
       generation = await generateStaffExplanation({
         destinationName: destination.name,
         situation,
         retrieval,
+        length,
+        regenerate,
       });
     } catch (error) {
       if (error instanceof GenerationUnavailableError) {
@@ -185,7 +193,7 @@ export async function POST(request: Request) {
       metadata: { ...baseMetadata, fallback: false, source_ids: sources.map((s) => s.id) },
     });
 
-    return respond({ ok: true, explanation: generation.explanation, sources, fallback: false });
+    return respond({ ok: true, explanation: generation.explanation, sources, fallback: false, length });
   } catch (error) {
     console.error("[STAFF ASSISTANT ROUTE ERROR]", error);
     return fail("INTERNAL_ERROR", 500);

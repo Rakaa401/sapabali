@@ -95,9 +95,23 @@ export async function POST(request: Request) {
     }
 
     // 3. Harus login (halaman ini ada di area admin)
-    const supabase = await createClient();
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) return fail("UNAUTHORIZED", 401);
+const supabase = await createClient();
+const { data: userData } = await supabase.auth.getUser();
+
+if (!userData.user) return fail("UNAUTHORIZED", 401);
+
+const { data: adminUser, error: adminError } = await supabase
+  .from("admin_users")
+  .select("id")
+  .eq("id", userData.user.id)
+  .maybeSingle();
+
+if (adminError) {
+  console.error("[STAFF ASSISTANT ADMIN CHECK ERROR]", adminError);
+  return fail("INTERNAL_ERROR", 500);
+}
+
+if (!adminUser) return fail("UNAUTHORIZED", 401);
 
     // 4. Destinasi harus ada dan Published
     const { data: destination, error: destinationError } = await supabase

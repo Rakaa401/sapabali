@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { buildStaffSources, retrieveStaffContext } from "@/lib/staff-assistant/context";
+import { generateStaffExplanation } from "@/lib/staff-assistant/generate";
 import { parseStaffRequest } from "@/lib/staff-assistant/validation";
+import { GenerationUnavailableError } from "@/lib/visitor-chat/generate";
 import { RateLimitUnavailableError, checkRateLimit } from "@/lib/visitor-chat/rate-limit";
 
 // POST /api/staff/assistant
@@ -11,7 +13,7 @@ import { RateLimitUnavailableError, checkRateLimit } from "@/lib/visitor-chat/ra
 
 const MAX_BODY_CHARS = 4000;
 
-// Dipakai kalau data destinasi tidak cukup. Tidak menyebut aturan apa pun.
+// Dipakai kalau data destinasi tidak cukup atau model menolak. Tidak menyebut aturan apa pun.
 const FALLBACK_EXPLANATION = {
   normal:
     "Thank you for your patience. I want to give you the correct information, so I will check with our coordinator and come back to you shortly.",
@@ -30,10 +32,12 @@ const ERROR_MESSAGES: Record<ErrorCode, string> = {
   INVALID_REQUEST: "Permintaan tidak valid.",
   UNAUTHORIZED: "Silakan login terlebih dahulu.",
   RATE_LIMITED: "Terlalu banyak permintaan. Tunggu sebentar lalu coba lagi.",
-  SERVICE_UNAVAILABLE: "Layanan sedang tidak tersedia. Coba lagi sebentar lagi.",
+  SERVICE_UNAVAILABLE: "Layanan AI sedang tidak tersedia. Coba lagi sebentar lagi.",
   DESTINATION_NOT_FOUND: "Destinasi tidak ditemukan.",
   INTERNAL_ERROR: "Terjadi kesalahan. Coba lagi.",
 };
+
+const isDev = process.env.NODE_ENV !== "production";
 
 function respond(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store", ...headers } });
@@ -71,7 +75,7 @@ export async function POST(request: Request) {
 
   const parsed = parseStaffRequest(json);
   if (!parsed.ok) return fail("INVALID_REQUEST", 400, { message: parsed.message });
-  const { destinationId, situation, length } = parsed.data;
+  const { destinationId, situation, length, regenerate } = parsed.data;
 
   try {
     // 2. Rate limit (sebelum query database dan panggilan AI)
@@ -98,7 +102,7 @@ export async function POST(request: Request) {
     // 4. Destinasi harus ada dan Published
     const { data: destination, error: destinationError } = await supabase
       .from("destinations")
-      .select("id, slug")
+      .select("id, name, slug")
       .eq("id", destinationId)
       .eq("status", "published")
       .maybeSingle();
@@ -108,6 +112,16 @@ export async function POST(request: Request) {
       return fail("INTERNAL_ERROR", 500);
     }
     if (!destination) return fail("DESTINATION_NOT_FOUND", 404);
+
+    const respondFallback = (reason: string) =>
+      respond({
+        ok: true,
+        explanation: FALLBACK_EXPLANATION[length],
+        sources: [],
+        fallback: true,
+        length,
+        ...(isDev ? { debug: { reason } } : {}),
+      });
 
     // 5. Cari konteks (07.3)
     let retrieval;
@@ -119,43 +133,38 @@ export async function POST(request: Request) {
     }
 
     // Data kosong atau kurang relevan: jangan panggil AI, jangan mengarang aturan
-    if (!retrieval.sufficient) {
-      return respond({
-        ok: true,
-        explanation: FALLBACK_EXPLANATION[length],
-        sources: [],
-        fallback: true,
+    if (!retrieval.sufficient) return respondFallback(retrieval.reason);
+
+    // 6. Susun penjelasan bahasa Inggris (07.4)
+    let generation;
+    try {
+      generation = await generateStaffExplanation({
+        destinationName: destination.name,
+        situation,
+        retrieval,
         length,
-        ...(process.env.NODE_ENV !== "production"
-          ? { debug: { reason: retrieval.reason, similarities: retrieval.similarities } }
-          : {}),
+        regenerate,
       });
+    } catch (error) {
+      if (error instanceof GenerationUnavailableError) {
+        return fail("SERVICE_UNAVAILABLE", 503, { retryAfterSeconds: 15 });
+      }
+      throw error;
     }
 
-    // 6. TODO 07.4: generate penjelasan dengan Gemini memakai retrieval.chunks.
-    // Sementara semua chunk dianggap dipakai, supaya metadata sumber bisa dites.
-    const sources = buildStaffSources(
-      retrieval.chunks.map((chunk) => chunk.label),
-      retrieval,
-      destination.slug,
-    );
+    // Model menolak atau outputnya tidak lolos validasi: pakai fallback aman
+    if (generation.kind === "unanswerable") return respondFallback(generation.reason);
+
+    // 7. Sumber hanya dari label yang benar-benar dipakai dan ada di hasil pencarian
+    const sources = buildStaffSources(generation.labels, retrieval, destination.slug);
+    if (sources.length === 0) return respondFallback("no_resolvable_source");
 
     return respond({
       ok: true,
-      explanation: "",
+      explanation: generation.explanation,
       sources,
       fallback: false,
       length,
-      ...(process.env.NODE_ENV !== "production"
-        ? {
-            debug: {
-              reason: retrieval.reason,
-              topSimilarity: retrieval.topSimilarity,
-              similarities: retrieval.similarities,
-              chunks: retrieval.chunks.map((c) => ({ label: c.label, similarity: c.similarity })),
-            },
-          }
-        : {}),
     });
   } catch (error) {
     console.error("[STAFF ASSISTANT ROUTE ERROR]", error);

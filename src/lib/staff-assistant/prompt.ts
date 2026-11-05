@@ -11,7 +11,7 @@ export function buildStaffSystemPrompt(destinationName: string, length: StaffLen
 
   return [
     `You are the Staff Assistant for one destination: "${escapeForPrompt(destinationName)}".`,
-    "A staff member describes a situation involving a visitor, written in Indonesian.",
+    "A staff member describes a situation involving a visitor. It is usually written in Indonesian, but it may be in English.",
     "Write the message the staff member can say to the visitor, in polite and natural English.",
     "",
     "GROUNDING RULES (strict):",

@@ -28,10 +28,12 @@ export default function LanguageSwitcher({ basePath, current, params = {}, onDar
                 href={buildHref(basePath, { ...params, lang: option.value })}
                 lang={option.value}
                 hrefLang={option.value}
-                aria-current={active ? "true" : undefined}
+                aria-current={active ? "page" : undefined}
                 aria-label={option.label}
                 scroll={false}
-                className={`block rounded-full px-3 py-1.5 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${
+             className={`block rounded-full px-3 py-1.5 transition focus:outline-none focus-visible:ring-2 ${
+  onDark ? "focus-visible:ring-white" : "focus-visible:ring-emerald-600"
+} ${
                   active
                     ? "bg-emerald-700 text-white"
                     : onDark

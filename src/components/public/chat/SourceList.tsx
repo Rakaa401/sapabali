@@ -23,10 +23,13 @@ export default function SourceList({ sources, lang }: Props) {
       <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">{t.title}</p>
       <ul className="mt-2 space-y-2">
         {sources.map((source) => (
-          <li key={source.id} className="rounded-lg bg-stone-50 px-3 py-2 text-sm">
+<li
+  key={source.id}
+  className="rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm"
+>
             <Link
               href={source.detailPath}
-              className="flex items-start gap-2 font-medium text-emerald-800 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+              className="flex items-start gap-2 rounded font-medium text-emerald-800 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
             >
               <FileText size={16} aria-hidden className="mt-0.5 shrink-0" />
               <span className="min-w-0 break-words">{source.title}</span>
@@ -40,7 +43,7 @@ export default function SourceList({ sources, lang }: Props) {
                   href={source.sourceUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 font-medium text-emerald-700 hover:underline"
+                  className="inline-flex items-center gap-1 rounded font-medium text-emerald-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
                 >
                   {t.open}
                   <ExternalLink size={12} aria-hidden />

@@ -210,7 +210,7 @@ export default function ChatInterface({ destinationId, language }: Props) {
       >
         <div className="mx-auto max-w-3xl space-y-4 py-6">
           {isEmpty && !loading && (
-            <section className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6">
+   <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
               <span
                 aria-hidden
                 className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-50 text-emerald-700"
@@ -241,7 +241,7 @@ export default function ChatInterface({ destinationId, language }: Props) {
           {messages.map((message) =>
             message.role === "user" ? (
               <div key={message.id} className="flex justify-end">
-                <div className="max-w-[85%] rounded-2xl rounded-br-md bg-emerald-700 px-4 py-3 text-white sm:max-w-[75%]">
+                  <div className="max-w-[85%] rounded-2xl rounded-br-md bg-emerald-700 px-4 py-3.5 text-white sm:max-w-[75%]">
                   <p className="sr-only">{t.youSaid}</p>
                   <p className="whitespace-pre-wrap break-words text-[0.95rem] leading-relaxed">{message.content}</p>
                 </div>
@@ -254,8 +254,8 @@ export default function ChatInterface({ destinationId, language }: Props) {
                 >
                   <Bot size={18} />
                 </span>
-                <div
-                  className={`min-w-0 max-w-[88%] rounded-2xl rounded-tl-md border px-4 py-3 sm:max-w-[80%] ${
+               <div
+  className={`min-w-0 max-w-[88%] rounded-2xl rounded-tl-md border px-4 py-3.5 sm:max-w-[80%] ${
                     message.fallback ? "border-amber-300 bg-amber-50" : "border-stone-200 bg-white"
                   }`}
                 >
@@ -354,9 +354,9 @@ export default function ChatInterface({ destinationId, language }: Props) {
             </button>
           </form>
 
-          <div className="mt-2 flex items-start justify-between gap-3 text-xs text-stone-500">
+            <div className="mt-2 flex flex-col gap-2 text-xs text-stone-500 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
             <p className="leading-relaxed">{t.disclaimer}</p>
-            <div className="flex shrink-0 flex-col items-end gap-1">
+                <div className="flex shrink-0 items-center justify-between gap-3 sm:flex-col sm:items-end sm:gap-1">
               {remaining <= 100 && (
                 <span className={remaining <= 20 ? "font-medium text-amber-700" : ""}>
                   {input.length}/{MAX_QUESTION_LENGTH}

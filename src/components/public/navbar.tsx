@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -7,8 +6,6 @@ import { Menu, X } from "lucide-react";
 
 const navigation = [
   { label: "Home", href: "/" },
-  { label: "Destinations", href: "/destinations" },
-  { label: "Explore", href: "/explore" },
 ];
 
 export default function Navbar() {
@@ -37,13 +34,6 @@ export default function Navbar() {
           ))}
         </div>
 
-        <Link
-          href="/explore"
-          className="hidden rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 md:block"
-        >
-          Explore Bali
-        </Link>
-
         <button
           type="button"
           aria-label={open ? "Close menu" : "Open menu"}
@@ -68,13 +58,6 @@ export default function Navbar() {
                 {item.label}
               </Link>
             ))}
-            <Link
-              href="/explore"
-              onClick={() => setOpen(false)}
-              className="text-sm font-semibold text-emerald-600"
-            >
-              Explore Bali
-            </Link>
           </div>
         </div>
       )}

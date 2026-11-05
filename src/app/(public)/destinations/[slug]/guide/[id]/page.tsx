@@ -71,7 +71,7 @@ export default async function KnowledgeDetailPage({ params, searchParams }: Prop
       </div>
 
       <div className="mx-auto max-w-3xl px-6 pt-8 sm:pt-10">
-        <article className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-10">
+      <article className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-10">
           <header>
             <p className="text-sm font-medium text-emerald-700">{destination.name}</p>
 
@@ -126,7 +126,7 @@ export default async function KnowledgeDetailPage({ params, searchParams }: Prop
                         href={source}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={`inline-flex items-center gap-1 font-medium text-emerald-700 hover:underline ${
+                        className={`inline-flex items-center gap-1 font-medium text-emerald-700 hover:underline focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-emerald-600 ${
                           item.source_name ? "ml-2" : ""
                         }`}
                       >

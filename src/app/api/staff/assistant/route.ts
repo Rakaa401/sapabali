@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { buildStaffSources, retrieveStaffContext } from "@/lib/staff-assistant/context";
 import { parseStaffRequest } from "@/lib/staff-assistant/validation";
 import { RateLimitUnavailableError, checkRateLimit } from "@/lib/visitor-chat/rate-limit";
 
@@ -10,7 +11,7 @@ import { RateLimitUnavailableError, checkRateLimit } from "@/lib/visitor-chat/ra
 
 const MAX_BODY_CHARS = 4000;
 
-// Sementara (sampai 07.3 dan 07.4): selalu fallback aman, tidak menyebut aturan apa pun.
+// Dipakai kalau data destinasi tidak cukup. Tidak menyebut aturan apa pun.
 const FALLBACK_EXPLANATION = {
   normal:
     "Thank you for your patience. I want to give you the correct information, so I will check with our coordinator and come back to you shortly.",
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
 
   const parsed = parseStaffRequest(json);
   if (!parsed.ok) return fail("INVALID_REQUEST", 400, { message: parsed.message });
-  const { destinationId, length } = parsed.data;
+  const { destinationId, situation, length } = parsed.data;
 
   try {
     // 2. Rate limit (sebelum query database dan panggilan AI)
@@ -97,7 +98,7 @@ export async function POST(request: Request) {
     // 4. Destinasi harus ada dan Published
     const { data: destination, error: destinationError } = await supabase
       .from("destinations")
-      .select("id")
+      .select("id, slug")
       .eq("id", destinationId)
       .eq("status", "published")
       .maybeSingle();
@@ -108,13 +109,53 @@ export async function POST(request: Request) {
     }
     if (!destination) return fail("DESTINATION_NOT_FOUND", 404);
 
-    // 5. TODO 07.3: retrieval, TODO 07.4: generation
+    // 5. Cari konteks (07.3)
+    let retrieval;
+    try {
+      retrieval = await retrieveStaffContext(supabase, destination.id, situation);
+    } catch (error) {
+      console.error("[STAFF ASSISTANT RETRIEVAL ERROR]", error);
+      return fail("SERVICE_UNAVAILABLE", 503, { retryAfterSeconds: 15 });
+    }
+
+    // Data kosong atau kurang relevan: jangan panggil AI, jangan mengarang aturan
+    if (!retrieval.sufficient) {
+      return respond({
+        ok: true,
+        explanation: FALLBACK_EXPLANATION[length],
+        sources: [],
+        fallback: true,
+        length,
+        ...(process.env.NODE_ENV !== "production"
+          ? { debug: { reason: retrieval.reason, similarities: retrieval.similarities } }
+          : {}),
+      });
+    }
+
+    // 6. TODO 07.4: generate penjelasan dengan Gemini memakai retrieval.chunks.
+    // Sementara semua chunk dianggap dipakai, supaya metadata sumber bisa dites.
+    const sources = buildStaffSources(
+      retrieval.chunks.map((chunk) => chunk.label),
+      retrieval,
+      destination.slug,
+    );
+
     return respond({
       ok: true,
-      explanation: FALLBACK_EXPLANATION[length],
-      sources: [],
-      fallback: true,
+      explanation: "",
+      sources,
+      fallback: false,
       length,
+      ...(process.env.NODE_ENV !== "production"
+        ? {
+            debug: {
+              reason: retrieval.reason,
+              topSimilarity: retrieval.topSimilarity,
+              similarities: retrieval.similarities,
+              chunks: retrieval.chunks.map((c) => ({ label: c.label, similarity: c.similarity })),
+            },
+          }
+        : {}),
     });
   } catch (error) {
     console.error("[STAFF ASSISTANT ROUTE ERROR]", error);

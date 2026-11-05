@@ -18,12 +18,14 @@ import {
   List,
   Tags,
   Sparkles,
+  MessageSquareText,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const navigation = [
   { label: "Overview", href: "/admin", icon: LayoutDashboard },
   { label: "Destinations", href: "/admin/destinations", icon: MapPin },
+  { label: "Staff Assistant", href: "/admin/staff-assistant", icon: MessageSquareText },
   { label: "AI Structuring", href: "/admin/ai-structuring", icon: Sparkles },
   { label: "AI Logs", href: "/admin/ai-logs", icon: BrainCircuit },
   { label: "Activity", href: "/admin/activity", icon: Activity },

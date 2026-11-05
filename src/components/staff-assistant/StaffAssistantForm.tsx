@@ -14,6 +14,7 @@ import {
   Languages,
   ArrowRight,
 } from "lucide-react";
+import { MAX_SITUATION_LENGTH } from "@/lib/staff-assistant/types";
 
 const exampleSituation =
   "A visitor is visiting a Balinese temple. They are wearing shorts and asking whether they are allowed to enter the temple.";
@@ -124,14 +125,16 @@ export default function StaffAssistantForm() {
                 Visitor situation
               </label>
               <span className="text-xs text-zinc-400">
-                {situation.length}/2000
+              {situation.length}/{MAX_SITUATION_LENGTH}
               </span>
             </div>
 
             <textarea
               id="situation"
               value={situation}
-              onChange={(event) => setSituation(event.target.value.slice(0, 2000))}
+             onChange={(event) =>
+  setSituation(event.target.value.slice(0, MAX_SITUATION_LENGTH))
+}
               placeholder="Example: A visitor is asking why they need to wear a sarong before entering the temple..."
               rows={9}
               className="w-full resize-y rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm leading-6 text-zinc-800 outline-none transition placeholder:text-zinc-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"

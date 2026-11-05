@@ -1,20 +1,16 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { buildStaffSources, retrieveStaffContext } from "@/lib/staff-assistant/context";
-import { generateStaffExplanation } from "@/lib/staff-assistant/generate";
-import { logStaffRequest } from "@/lib/staff-assistant/log";
 import { parseStaffRequest } from "@/lib/staff-assistant/validation";
-import { GenerationUnavailableError } from "@/lib/visitor-chat/generate";
 import { RateLimitUnavailableError, checkRateLimit } from "@/lib/visitor-chat/rate-limit";
 
 // POST /api/staff/assistant
-// Body:    { destinationId, situation, language?: "en", length?: "normal" | "short", regenerate?: boolean }
-// Sukses:  { ok: true, explanation, sources, fallback, length }
-// Gagal:   { ok: false, error: { code, message }, retryAfterSeconds? }
+// Body:   { destinationId, situation, language?: "en", length?: "normal" | "short", regenerate?: boolean }
+// Sukses: { ok: true, explanation, sources, fallback, length }
+// Gagal:  { ok: false, error: { code, message }, retryAfterSeconds? }
 
 const MAX_BODY_CHARS = 4000;
 
-// Dipakai kalau data destinasi tidak cukup. Tidak menyebut aturan apa pun.
+// Sementara (sampai 07.3 dan 07.4): selalu fallback aman, tidak menyebut aturan apa pun.
 const FALLBACK_EXPLANATION = {
   normal:
     "Thank you for your patience. I want to give you the correct information, so I will check with our coordinator and come back to you shortly.",
@@ -23,6 +19,7 @@ const FALLBACK_EXPLANATION = {
 
 type ErrorCode =
   | "INVALID_REQUEST"
+  | "UNAUTHORIZED"
   | "RATE_LIMITED"
   | "SERVICE_UNAVAILABLE"
   | "DESTINATION_NOT_FOUND"
@@ -30,8 +27,9 @@ type ErrorCode =
 
 const ERROR_MESSAGES: Record<ErrorCode, string> = {
   INVALID_REQUEST: "Permintaan tidak valid.",
+  UNAUTHORIZED: "Silakan login terlebih dahulu.",
   RATE_LIMITED: "Terlalu banyak permintaan. Tunggu sebentar lalu coba lagi.",
-  SERVICE_UNAVAILABLE: "Layanan AI sedang tidak tersedia. Coba lagi sebentar lagi.",
+  SERVICE_UNAVAILABLE: "Layanan sedang tidak tersedia. Coba lagi sebentar lagi.",
   DESTINATION_NOT_FOUND: "Destinasi tidak ditemukan.",
   INTERNAL_ERROR: "Terjadi kesalahan. Coba lagi.",
 };
@@ -40,7 +38,11 @@ function respond(body: unknown, status = 200, headers: Record<string, string> = 
   return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store", ...headers } });
 }
 
-function fail(code: ErrorCode, status: number, options: { message?: string; retryAfterSeconds?: number } = {}) {
+function fail(
+  code: ErrorCode,
+  status: number,
+  options: { message?: string; retryAfterSeconds?: number } = {},
+) {
   return respond(
     {
       ok: false,
@@ -68,12 +70,10 @@ export async function POST(request: Request) {
 
   const parsed = parseStaffRequest(json);
   if (!parsed.ok) return fail("INVALID_REQUEST", 400, { message: parsed.message });
-  const { destinationId, situation, length, regenerate } = parsed.data;
-
-  const startedAt = Date.now();
+  const { destinationId, length } = parsed.data;
 
   try {
-    // 2. Rate limit (sebelum query database dan panggilan AI). Memakai batas yang sama dengan chat.
+    // 2. Rate limit (sebelum query database dan panggilan AI)
     try {
       const limit = await checkRateLimit(request);
       if (!limit.allowed) {
@@ -89,11 +89,15 @@ export async function POST(request: Request) {
       throw error;
     }
 
-    // 3. Destinasi harus ada dan Published
+    // 3. Harus login (halaman ini ada di area admin)
     const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) return fail("UNAUTHORIZED", 401);
+
+    // 4. Destinasi harus ada dan Published
     const { data: destination, error: destinationError } = await supabase
       .from("destinations")
-      .select("id, name, slug")
+      .select("id")
       .eq("id", destinationId)
       .eq("status", "published")
       .maybeSingle();
@@ -104,96 +108,14 @@ export async function POST(request: Request) {
     }
     if (!destination) return fail("DESTINATION_NOT_FOUND", 404);
 
-    const baseMetadata = {
-      destination_id: destination.id,
-      destination_name: destination.name,
+    // 5. TODO 07.3: retrieval, TODO 07.4: generation
+    return respond({
+      ok: true,
+      explanation: FALLBACK_EXPLANATION[length],
+      sources: [],
+      fallback: true,
       length,
-      regenerate,
-    };
-
-    const respondFallback = async (
-      reason: string,
-      model?: string,
-      usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number },
-    ) => {
-      const explanation = FALLBACK_EXPLANATION[length];
-      await logStaffRequest({
-        query: situation,
-        response: explanation,
-        model: model ?? null,
-        usage,
-        startedAt,
-        status: "success",
-        metadata: { ...baseMetadata, fallback: true, reason },
-      });
-      return respond({ ok: true, explanation, sources: [], fallback: true, length });
-    };
-
-    // 4. Cari konteks
-    let retrieval;
-    try {
-      retrieval = await retrieveStaffContext(supabase, destination.id, situation);
-    } catch (error) {
-      console.error("[STAFF ASSISTANT RETRIEVAL ERROR]", error);
-      await logStaffRequest({
-        query: situation,
-        startedAt,
-        status: "error",
-        errorMessage: "retrieval_failed",
-        metadata: { ...baseMetadata, stage: "retrieval" },
-      });
-      return fail("SERVICE_UNAVAILABLE", 503, { retryAfterSeconds: 15 });
-    }
-
-    // Data kosong atau kurang relevan: jangan panggil AI, jangan mengarang aturan
-    if (!retrieval.sufficient) return respondFallback(retrieval.reason);
-
-    // 5. Susun penjelasan bahasa Inggris
-    let generation;
-    try {
-      generation = await generateStaffExplanation({
-        destinationName: destination.name,
-        situation,
-        retrieval,
-        length,
-        regenerate,
-      });
-    } catch (error) {
-      if (error instanceof GenerationUnavailableError) {
-        await logStaffRequest({
-          query: situation,
-          startedAt,
-          status: "error",
-          errorMessage: "generation_unavailable",
-          metadata: { ...baseMetadata, stage: "generation" },
-        });
-        return fail("SERVICE_UNAVAILABLE", 503, { retryAfterSeconds: 15 });
-      }
-      throw error;
-    }
-
-    // Model menolak atau outputnya tidak lolos validasi: pakai fallback aman
-    if (generation.kind === "unanswerable") {
-      return respondFallback(generation.reason, generation.model, generation.usage);
-    }
-
-    // 6. Sumber hanya dari label yang benar-benar dipakai dan ada di hasil pencarian
-    const sources = buildStaffSources(generation.labels, retrieval, destination.slug);
-    if (sources.length === 0) {
-      return respondFallback("no_resolvable_source", generation.model, generation.usage);
-    }
-
-    await logStaffRequest({
-      query: situation,
-      response: generation.explanation,
-      model: generation.model,
-      usage: generation.usage,
-      startedAt,
-      status: "success",
-      metadata: { ...baseMetadata, fallback: false, source_ids: sources.map((s) => s.id) },
     });
-
-    return respond({ ok: true, explanation: generation.explanation, sources, fallback: false, length });
   } catch (error) {
     console.error("[STAFF ASSISTANT ROUTE ERROR]", error);
     return fail("INTERNAL_ERROR", 500);

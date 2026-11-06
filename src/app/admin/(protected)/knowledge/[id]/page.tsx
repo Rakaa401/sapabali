@@ -55,7 +55,7 @@ export default async function KnowledgeDetailPage({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
           <Link href={`/admin/knowledge/${item.id}/edit`} className={primaryBtn}>
             Edit
           </Link>
@@ -77,7 +77,7 @@ export default async function KnowledgeDetailPage({
 
       <div className="space-y-5">
         {/* Ringkasan: semua info singkat sebaris */}
-        <section className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-md border border-slate-200 bg-white p-4 md:grid-cols-5">
+        <section className="grid gap-x-6 gap-y-4 rounded-md border border-slate-200 bg-white p-4 sm:grid-cols-2 md:grid-cols-5">
           <Meta label="Category" value={item.category} />
           <Meta
             label="Language"

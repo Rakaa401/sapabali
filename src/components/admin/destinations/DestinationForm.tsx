@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import { useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -368,9 +370,12 @@ export default function DestinationForm({
               placeholder="https://example.com/image.jpg"
             />
             {values.image_url && (
-              <img
+              <Image
                 src={values.image_url}
                 alt="Destination preview"
+                width={800}
+                height={320}
+                unoptimized
                 className="mt-3 h-40 w-full rounded-lg border border-zinc-200 object-cover"
               />
             )}

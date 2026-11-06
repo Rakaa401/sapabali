@@ -275,8 +275,6 @@ export default function AiStructuringForm({
     if (!isGenerating) return;
 
     const startedAt = Date.now();
-    setProgress(2);
-    setElapsed(0);
 
     const timer = setInterval(() => {
       setElapsed(Math.floor((Date.now() - startedAt) / 1000));
@@ -349,6 +347,8 @@ export default function AiStructuringForm({
 
     setApiError("");
     setMessage("");
+    setProgress(2);
+    setElapsed(0);
     setIsGenerating(true);
 
     try {

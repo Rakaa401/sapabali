@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { MapPin, Pencil, Plus, Search } from "lucide-react";
@@ -172,9 +174,12 @@ export default function DestinationTable({
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
                           {item.image_url ? (
-                            <img
+                            <Image
                               src={item.image_url}
                               alt={item.name}
+                              width={44}
+                              height={44}
+                              unoptimized
                               className="size-11 shrink-0 rounded-lg border border-zinc-200 object-cover"
                             />
                           ) : (

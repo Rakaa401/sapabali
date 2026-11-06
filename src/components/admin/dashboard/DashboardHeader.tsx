@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
 
 export default function DashboardHeader() {
   const today = new Intl.DateTimeFormat("en-GB", {

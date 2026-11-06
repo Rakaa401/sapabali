@@ -95,10 +95,6 @@ const RETRY_DELAY_MS = 2_000;
 /* Validation helpers                                                  */
 /* ------------------------------------------------------------------ */
 
-function isString(value: unknown): value is string {
-  return typeof value === "string";
-}
-
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }

@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   LayoutDashboard,
   MapPin,
@@ -47,14 +47,7 @@ export default function AdminSidebar() {
   const [loggingOut, setLoggingOut] = useState(false);
 
   const knowledgeActive = pathname.startsWith("/admin/knowledge");
-
-  useEffect(() => {
-    if (knowledgeActive) {
-      setKnowledgeOpen(true);
-    }
-  }, [knowledgeActive]);
-
-  async function handleLogout() {
+async function handleLogout() {
     setLoggingOut(true);
 
     const supabase = createClient();

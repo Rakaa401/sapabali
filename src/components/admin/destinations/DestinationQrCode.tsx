@@ -22,16 +22,10 @@ function download(href: string, filename: string) {
 }
 
 export default function DestinationQrCode({ slug, name, status }: Props) {
-  const [origin, setOrigin] = useState<string>(process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") ?? "");
+  const [origin] = useState<string>(process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") ?? "");
   const [preview, setPreview] = useState("");
   const [error, setError] = useState("");
-
-  // Kalau NEXT_PUBLIC_SITE_URL belum diisi, pakai alamat yang sedang dibuka admin
-  useEffect(() => {
-    if (!origin) setOrigin(window.location.origin);
-  }, [origin]);
-
-  const url = useMemo(() => (origin ? `${origin}/destinations/${encodeURIComponent(slug)}` : ""), [origin, slug]);
+const url = useMemo(() => (origin ? `${origin}/destinations/${encodeURIComponent(slug)}` : ""), [origin, slug]);
   const isLocal = /^https?:\/\/(localhost|127\.|0\.0\.0\.0|\[::1\])/i.test(url);
 
   useEffect(() => {

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Eye, MapPin, Pencil, Plus, Search } from "lucide-react";
+import { MapPin, Pencil, Plus, Search } from "lucide-react";
 import type { Destination } from "@/lib/destinations/queries";
 import Badge from "@/components/ui/badge";
 import Button from "@/components/ui/button";
@@ -218,14 +218,6 @@ export default function DestinationTable({
 
                       <td className="px-5 py-3.5">
                         <div className="flex items-center justify-end gap-1">
-                          <Link
-                            href={`/admin/destinations/${item.id}`}
-                            className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
-                            aria-label={`View ${item.name}`}
-                          >
-                            <Eye size={16} />
-                          </Link>
-
                           <Link
                             href={`/admin/destinations/${item.id}/edit`}
                             className="rounded-md p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"

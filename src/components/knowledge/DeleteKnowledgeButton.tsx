@@ -8,7 +8,8 @@ export default function DeleteKnowledgeButton({
   id,
   title,
   redirectTo,
-  className = "text-red-700 hover:underline",
+className =
+  "rounded-sm text-red-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50",
 }: {
   id: string;
   title: string;

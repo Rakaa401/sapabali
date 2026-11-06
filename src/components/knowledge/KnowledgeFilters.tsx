@@ -13,7 +13,7 @@ export interface FilterValues {
 }
 
 const field =
-  "rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600";
+  "rounded-md border border-slate-300 bg-white px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-1";
 
 export default function KnowledgeFilters({ defaults }: { defaults: FilterValues }) {
   // Ganti filter -> langsung kirim form (URL ikut berubah, data diambil ulang dari Supabase)
@@ -21,14 +21,14 @@ export default function KnowledgeFilters({ defaults }: { defaults: FilterValues 
     e.currentTarget.form?.requestSubmit();
 
   return (
-    <Form action="/admin/knowledge" className="mb-4 flex flex-wrap gap-3">
+    <Form action="/admin/knowledge" className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
       <input
         type="search"
         name="q"
         defaultValue={defaults.q}
         placeholder="Search title or content"
         aria-label="Search knowledge"
-        className={`${field} min-w-64 flex-1`}
+        className={`${field} min-w-0 flex-1`}
       />
       <select name="category" defaultValue={defaults.category} onChange={submitOnChange} aria-label="Filter by category" className={field}>
         <option value="">All categories</option>
@@ -53,7 +53,7 @@ export default function KnowledgeFilters({ defaults }: { defaults: FilterValues 
         <option value="created_desc">Recently created</option>
         <option value="title_asc">Title A-Z</option>
       </select>
-      <button type="submit" className="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-900">
+      <button type="submit" className="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-700 focus-visible:ring-offset-2">
         Search
       </button>
       <Link href="/admin/knowledge" className="px-2 py-2 text-sm text-slate-600 hover:underline">

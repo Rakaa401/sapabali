@@ -8,7 +8,11 @@ import { updateKnowledge } from "@/lib/knowledge/actions/update";
 import { LANGUAGES } from "@/lib/knowledge/constants";
 import type { KnowledgeCategory } from "@/lib/knowledge/categories";
 import { validateKnowledge, type FieldErrors } from "@/lib/knowledge/validation";
-import type { Destination, KnowledgeFormValues, KnowledgeItem } from "@/types/knowledge";
+import type {
+  Destination,
+  KnowledgeFormValues,
+  KnowledgeItem,
+} from "@/types/knowledge";
 
 function fieldClass(error?: string) {
   return [
@@ -21,7 +25,7 @@ function fieldClass(error?: string) {
 }
 
 const primaryBtn =
-  "inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-md bg-emerald-700 px-4 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 disabled:opacity-60";
+  "inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-md bg-emerald-700 px-4 text-sm font-medium text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
 
 const secondaryBtn =
   "inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400";
@@ -39,6 +43,7 @@ export default function KnowledgeForm({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+
   const [values, setValues] = useState<KnowledgeFormValues>({
     title: initial?.title ?? "",
     content: initial?.content ?? "",
@@ -49,11 +54,23 @@ export default function KnowledgeForm({
     source_url: initial?.source_url ?? "",
     source_description: initial?.source_description ?? "",
   });
+
   const [errors, setErrors] = useState<FieldErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
 
-  function set<K extends keyof KnowledgeFormValues>(key: K, value: KnowledgeFormValues[K]) {
+  function set<K extends keyof KnowledgeFormValues>(
+    key: K,
+    value: KnowledgeFormValues[K],
+  ) {
     setValues((prev) => ({ ...prev, [key]: value }));
+
+    setErrors((prev) => {
+      if (!prev[key]) return prev;
+
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -62,6 +79,7 @@ export default function KnowledgeForm({
 
     const found = validateKnowledge(values);
     setErrors(found);
+
     if (Object.keys(found).length > 0) return;
 
     startTransition(async () => {
@@ -75,6 +93,7 @@ export default function KnowledgeForm({
         setServerError(result.error);
         return;
       }
+
       router.push(`/admin/knowledge/${result.id}`);
       router.refresh();
     });
@@ -83,24 +102,24 @@ export default function KnowledgeForm({
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
       {serverError && (
-        <p
+        <div
           role="alert"
           className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
         >
           {serverError}
-        </p>
+        </div>
       )}
 
       {destinations.length === 0 && (
-        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          No destinations yet. Add at least one destination in Supabase before saving knowledge.
-        </p>
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          No destinations yet. Add at least one destination in Supabase before
+          saving knowledge.
+        </div>
       )}
 
       <div className="space-y-5">
-        {/* Main content */}
         <Panel title="Entry">
-          <Field label="Title" error={errors.title} htmlFor="title">
+          <Field label="Title" required error={errors.title} htmlFor="title">
             <input
               id="title"
               className={fieldClass(errors.title)}
@@ -109,21 +128,30 @@ export default function KnowledgeForm({
             />
           </Field>
 
-          <Field label="Content" error={errors.content} htmlFor="content">
+          <Field
+            label="Content"
+            required
+            error={errors.content}
+            htmlFor="content"
+          >
             <textarea
               id="content"
-              rows={8}
-              className={fieldClass(errors.content)}
+              rows={12}
+              className={`${fieldClass(errors.content)} min-h-48 resize-y`}
               value={values.content}
               onChange={(e) => set("content", e.target.value)}
             />
           </Field>
         </Panel>
 
-        {/* Details + Source berdampingan */}
         <div className="grid gap-5 md:grid-cols-2 md:items-start">
           <Panel title="Details">
-            <Field label="Category" error={errors.category} htmlFor="category">
+            <Field
+              label="Category"
+              required
+              error={errors.category}
+              htmlFor="category"
+            >
               <SelectBox
                 id="category"
                 className={fieldClass(errors.category)}
@@ -131,30 +159,42 @@ export default function KnowledgeForm({
                 onChange={(e) => set("category", e.target.value)}
               >
                 <option value="">Select category</option>
-               {categories.map((category) => (
-  <option key={category.id} value={category.name}>
-    {category.name}
-  </option>
-))}
-              </SelectBox>
-            </Field>
-
-            <Field label="Language" error={errors.language} htmlFor="language">
-              <SelectBox
-                id="language"
-                className={fieldClass(errors.language)}
-                value={values.language}
-                onChange={(e) => set("language", e.target.value as "id" | "en")}
-              >
-                {LANGUAGES.map((l) => (
-                  <option key={l.value} value={l.value}>
-                    {l.label}
+                {categories.map((category) => (
+                  <option key={category.id} value={category.name}>
+                    {category.name}
                   </option>
                 ))}
               </SelectBox>
             </Field>
 
-            <Field label="Destination" error={errors.destination_id} htmlFor="destination">
+            <Field
+              label="Language"
+              required
+              error={errors.language}
+              htmlFor="language"
+            >
+              <SelectBox
+                id="language"
+                className={fieldClass(errors.language)}
+                value={values.language}
+                onChange={(e) =>
+                  set("language", e.target.value as "id" | "en")
+                }
+              >
+                {LANGUAGES.map((language) => (
+                  <option key={language.value} value={language.value}>
+                    {language.label}
+                  </option>
+                ))}
+              </SelectBox>
+            </Field>
+
+            <Field
+              label="Destination"
+              required
+              error={errors.destination_id}
+              htmlFor="destination"
+            >
               <SelectBox
                 id="destination"
                 className={fieldClass(errors.destination_id)}
@@ -162,10 +202,12 @@ export default function KnowledgeForm({
                 onChange={(e) => set("destination_id", e.target.value)}
               >
                 <option value="">Select destination</option>
-                {destinations.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                    {d.status !== "published" ? ` (${d.status})` : ""}
+                {destinations.map((destination) => (
+                  <option key={destination.id} value={destination.id}>
+                    {destination.name}
+                    {destination.status !== "published"
+                      ? ` (${destination.status})`
+                      : ""}
                   </option>
                 ))}
               </SelectBox>
@@ -177,6 +219,7 @@ export default function KnowledgeForm({
               <input
                 id="source_name"
                 className={fieldClass()}
+                autoComplete="organization"
                 value={values.source_name}
                 onChange={(e) => set("source_name", e.target.value)}
               />
@@ -185,8 +228,10 @@ export default function KnowledgeForm({
             <Field label="URL" error={errors.source_url} htmlFor="source_url">
               <input
                 id="source_url"
+                type="url"
                 className={fieldClass(errors.source_url)}
                 placeholder="https://"
+                autoComplete="url"
                 value={values.source_url}
                 onChange={(e) => set("source_url", e.target.value)}
               />
@@ -195,8 +240,8 @@ export default function KnowledgeForm({
             <Field label="Description" htmlFor="source_description">
               <textarea
                 id="source_description"
-                rows={2}
-                className={fieldClass()}
+                rows={3}
+                className={`${fieldClass()} resize-y`}
                 value={values.source_description}
                 onChange={(e) => set("source_description", e.target.value)}
               />
@@ -205,19 +250,30 @@ export default function KnowledgeForm({
         </div>
       </div>
 
-      <div className="flex justify-end gap-2 border-t border-slate-200 pt-4">
+      <div className="flex flex-col-reverse gap-2 border-t border-slate-200 pt-4 sm:flex-row sm:justify-end">
         <Link href="/admin/knowledge" className={secondaryBtn}>
           Cancel
         </Link>
+
         <button type="submit" disabled={pending} className={primaryBtn}>
-          {pending ? "Saving..." : mode === "create" ? "Save as draft" : "Save changes"}
+          {pending
+            ? "Saving..."
+            : mode === "create"
+              ? "Save as draft"
+              : "Save changes"}
         </button>
       </div>
     </form>
   );
 }
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+function Panel({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className="rounded-md border border-slate-200 bg-white">
       <h2 className="border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-900">
@@ -232,20 +288,36 @@ function Field({
   label,
   htmlFor,
   error,
+  required = false,
   children,
 }: {
   label: string;
   htmlFor: string;
   error?: string;
+  required?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div>
-      <label htmlFor={htmlFor} className="mb-1 block text-sm font-medium text-slate-800">
+      <label
+        htmlFor={htmlFor}
+        className="mb-1 block text-sm font-medium text-slate-800"
+      >
         {label}
+        {required && (
+          <span className="ml-1 text-red-600" aria-hidden="true">
+            *
+          </span>
+        )}
       </label>
+
       {children}
-      {error && <p className="mt-1 text-sm text-red-700">{error}</p>}
+
+      {error && (
+        <p className="mt-1 text-sm text-red-700">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -263,6 +335,7 @@ function SelectBox({
       >
         {children}
       </select>
+
       <svg
         aria-hidden="true"
         viewBox="0 0 20 20"

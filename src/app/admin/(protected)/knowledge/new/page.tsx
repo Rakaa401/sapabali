@@ -9,7 +9,7 @@ export default async function NewKnowledgePage() {
   ]);
 
   return (
-    <main className="mx-auto  space-y-6">
+    <main className="mx-auto w-full max-w-5xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Create knowledge</h1>
       </div>

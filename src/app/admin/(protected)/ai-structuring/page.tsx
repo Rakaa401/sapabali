@@ -27,7 +27,7 @@ export default async function AiStructuringPage() {
   ]);
 
   return (
-    <main className="mx-auto space-y-6">
+    <main className="mx-auto w-full max-w-4xl space-y-6">
       <div>
         <div className="mb-2 flex items-center gap-2 text-sm font-medium text-emerald-700">
           <span>AI Tools</span>

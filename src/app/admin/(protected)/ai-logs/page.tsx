@@ -55,7 +55,7 @@ export default async function AiLogsPage({
   const last = Math.min(page * AI_LOGS_PAGE_SIZE, total);
 
   return (
-    <main className="mx-auto">
+    <main className="mx-auto w-full max-w-6xl">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-slate-900">AI logs</h1>
         <p className="mt-1 text-sm text-slate-600">

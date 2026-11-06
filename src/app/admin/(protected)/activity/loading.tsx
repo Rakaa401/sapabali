@@ -1,6 +1,6 @@
 export default function Loading() {
   return (
-    <main className="mx-auto " aria-busy="true">
+<main className="mx-auto w-full max-w-6xl p-6" aria-busy="true">    
       <div className="mb-6 h-8 w-40 animate-pulse rounded bg-slate-200" />
       <div className="mb-6 h-10 w-full animate-pulse rounded bg-slate-100" />
       <div className="space-y-4">

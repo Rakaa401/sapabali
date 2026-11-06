@@ -33,15 +33,22 @@ export default function KnowledgeTable({ items }: { items: KnowledgeItem[] }) {
         <tbody className="divide-y divide-slate-100">
           {items.map((k) => (
             <tr key={k.id} className="align-top">
-              <td className="max-w-xs px-4 py-3 font-medium text-slate-900">{k.title}</td>
+            <td className="max-w-xs px-4 py-3 font-medium text-slate-900">
+  <Link
+    href={`/admin/knowledge/${k.id}`}
+    className="line-clamp-2 rounded-sm hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-1"
+  >
+    {k.title}
+  </Link>
+</td>
               <td className="px-4 py-3 text-slate-700">{k.category ?? "-"}</td>
               <td className="px-4 py-3 uppercase text-slate-700">{k.language}</td>
               <td className="px-4 py-3 text-slate-700">{k.source_name ?? "-"}</td>
               <td className="px-4 py-3"><StatusBadge status={k.status} /></td>
               <td className="whitespace-nowrap px-4 py-3 text-slate-700">{formatDate(k.updated_at)}</td>
               <td className="whitespace-nowrap px-4 py-3">
-                <Link href={`/admin/knowledge/${k.id}`} className="mr-3 text-emerald-700 hover:underline">View</Link>
-                <Link href={`/admin/knowledge/${k.id}/edit`} className="mr-3 text-emerald-700 hover:underline">Edit</Link>
+                <Link href={`/admin/knowledge/${k.id}`} className="mr-3 rounded-sm text-emerald-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-1">View</Link>
+                <Link href={`/admin/knowledge/${k.id}/edit`} className="mr-3 rounded-sm text-emerald-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-1">Edit</Link>
                 <DeleteKnowledgeButton id={k.id} title={k.title} />
               </td>
             </tr>

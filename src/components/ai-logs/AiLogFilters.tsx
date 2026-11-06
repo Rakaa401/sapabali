@@ -30,7 +30,7 @@ export default function AiLogFilters({
   return (
     <Form action="/admin/ai-logs" className="mb-4 space-y-3">
       <div className="flex flex-wrap gap-3">
-        <input type="search" name="q" defaultValue={defaults.q} placeholder="Search query" aria-label="Search query" className={`${field} min-w-64 flex-1`} />
+        <input type="search" name="q" defaultValue={defaults.q} placeholder="Search query" aria-label="Search query" className={`${field} w-full min-w-0 flex-1`} />
         <select name="provider" defaultValue={defaults.provider} onChange={submitOnChange} aria-label="Filter by provider" className={field}>
           <option value="">All providers</option>
           {providers.map((p) => <option key={p} value={p}>{p}</option>)}

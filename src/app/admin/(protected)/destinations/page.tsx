@@ -5,7 +5,7 @@ export default async function DestinationsPage() {
   const destinations = await getDestinations();
 
   return (
-    <main>
+    <main className="mx-auto w-full max-w-5xl">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-slate-900">
           Destinations

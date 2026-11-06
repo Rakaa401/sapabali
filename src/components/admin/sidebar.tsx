@@ -149,11 +149,11 @@ export default function AdminSidebar() {
               type="button"
               onClick={() => setKnowledgeOpen(!knowledgeOpen)}
               aria-expanded={knowledgeOpen}
-              className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition ${
-                knowledgeActive
-                  ? ""
-                  : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
-              }`}
+             className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-1 ${
+  knowledgeActive
+    ? "bg-emerald-50 text-emerald-700"
+    : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
+}`}
             >
               <span className="flex items-center gap-3">
                 <BookOpen size={18} />

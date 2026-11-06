@@ -50,7 +50,7 @@ export default async function ActivityPage({
     "cursor-not-allowed border-zinc-100 bg-zinc-50 text-zinc-300";
 
   return (
-    <div className="mx-auto w-full space-y-6">
+    <div className="mx-auto w-full max-w-6xl space-y-6">
       {/* Header */}
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>

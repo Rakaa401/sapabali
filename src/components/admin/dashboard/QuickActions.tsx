@@ -11,7 +11,7 @@ const actions = [
   {
     title: "Manage Categories",
     description: "Group information by topic.",
-    href: "/admin/categories",
+    href: "/admin/knowledge/categories",
     icon: FolderPlus,
   },
   {

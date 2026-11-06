@@ -248,6 +248,7 @@ export default function KnowledgeCategoryManager({
                 className="mb-1 block text-sm font-medium text-slate-800"
               >
                 Name
+                <span className="ml-1 text-red-600" aria-hidden="true">*</span>
               </label>
               <input
                 id="category-name"
@@ -272,6 +273,7 @@ export default function KnowledgeCategoryManager({
                 className="mb-1 block text-sm font-medium text-slate-800"
               >
                 Slug
+                <span className="ml-1 text-red-600" aria-hidden="true">*</span>
               </label>
               <input
                 id="category-slug"
@@ -306,7 +308,7 @@ export default function KnowledgeCategoryManager({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-3">
+          <div className="flex flex-col-reverse gap-2 border-t border-slate-200 px-5 py-3 sm:flex-row sm:justify-end">
             <button
               type="button"
               onClick={closeForm}

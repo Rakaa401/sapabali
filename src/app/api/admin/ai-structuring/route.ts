@@ -141,7 +141,7 @@ export async function POST(request: Request) {
 
     // Updated by structureKnowledge so the log shows the model actually used
     // (primary or fallback).
-    let modelUsed = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+    let modelUsed = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
     const logRequest = async (values: {
       response?: string | null;
